@@ -535,28 +535,21 @@ class NativeGameHints {
           ),
         );
       }
-      final keys = game.scores.melodies['squirrel-harp-head']!.notes
-          .map((n) => n.degree)
-          .toList();
-      final onsets = game.scores.melodies['squirrel-harp-head']!.notes
-          .map((n) => n.step * .125)
-          .toList();
-      _commandRow(
-        out,
-        'squirrel-head',
-        keys,
-        onsets,
-        squirrel.waiting && (local.x - 13.5).abs() < 11,
-        dt,
-        p,
-        view,
-        ox + 16.4,
-        oy + 2.45,
-        .8,
-        cam.z,
-        delay: .2,
-        anyLast: true,
-      );
+      for (final d in squirrel.fruitHints(time)) {
+        out.add(
+          HintDraw(
+            d.texture,
+            ox + d.x,
+            oy + d.y,
+            d.w,
+            d.h,
+            d.alpha,
+            z: d.z,
+            order: d.order,
+            depthTest: d.depthTest,
+          ),
+        );
+      }
     }
     final owl = game.owl;
     if (owl != null) {
@@ -932,6 +925,10 @@ class NativeGameHints {
         mat.needsUpdate = true;
       }
       mat.blending = d.additive ? three.AdditiveBlending : three.NormalBlending;
+      if (mat.depthTest != d.depthTest) {
+        mat.depthTest = d.depthTest;
+        mat.needsUpdate = true;
+      }
       mat.opacity = d.alpha * tipOpacity;
       mat.rotation = d.rotation;
       mat.color = three.Color.fromHex32(d.color).toLinear();

@@ -233,9 +233,22 @@ class NativeWorldAssets {
               ? shared[binding]
               : {'value': await _value(u.value)};
         }
-        options['uniforms'] = uniforms;
         options['vertexShader'] = resources['shaders'][data['vertex']];
         options['fragmentShader'] = resources['shaders'][data['fragment']];
+        // Some original uniforms (e.g. cave uX/uY) were plain JS arrays.
+        // GLES expects Vector objects for scalar GLSL vectors. Keep uniform
+        // arrays as lists; their upload path has different requirements.
+        final source =
+            '${options['vertexShader']}\n${options['fragmentShader']}';
+        for (final declaration in RegExp(
+          r'\buniform\s+(?:lowp\s+|mediump\s+|highp\s+)?vec([234])\s+(\w+)\s*;',
+        ).allMatches(source)) {
+          final uniform = uniforms[declaration.group(2)];
+          final value = uniform?['value'];
+          if (value is! List) continue;
+          uniform['value'] = await _value({'vector': value});
+        }
+        options['uniforms'] = uniforms;
         material = three.ShaderMaterial.fromMap(options);
       } else {
         if (data['color'] != null) {

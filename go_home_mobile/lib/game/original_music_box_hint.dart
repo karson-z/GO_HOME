@@ -13,13 +13,14 @@ class HintDraw {
     this.rotation = 0,
     this.order = 14,
     this.additive = false,
+    this.depthTest = false,
     this.color = 0xffffff,
     this.z = .9,
   });
   final String texture;
   final double x, y, w, h, alpha, rotation, z;
   final int order, color;
-  final bool additive;
+  final bool additive, depthTest;
 }
 
 double _unit(double v) => v.clamp(0.0, 1.0);

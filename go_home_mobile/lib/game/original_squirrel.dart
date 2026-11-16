@@ -3,7 +3,9 @@ import 'dart:math' as math;
 import 'level.dart';
 import 'original_caller.dart';
 import 'original_rhythm.dart';
+import 'original_music_box_hint.dart';
 import 'player_physics.dart';
+import 'route_camera.dart';
 
 class SquirrelPoint {
   SquirrelPoint(this.x, this.y, [this.z = .45]);
@@ -128,6 +130,44 @@ class OriginalSquirrel {
   bool get allBells => fruits.every((f) => f.state == 'socketed');
   bool get waiting =>
       awake && mode == 'perch' && fruits.any((f) => f.state == 'hang');
+
+  // Source zv uses single fruit keys by default; the five-note head command
+  // belongs to an optional desktop experiment, not the main route.
+  List<HintDraw> fruitHints(double time) => [
+    if (waiting)
+      for (final f in fruits.where((f) => f.state == 'hang'))
+        for (final height in [
+          .85 *
+              (1 +
+                  math.max(0, math.sin(time * 4 + f.degree)) * .1 +
+                  f.ring * .25),
+        ])
+          HintDraw(
+            'tag-${f.degree}',
+            f.hang.x + (f.hang.x >= 13.5 ? .9 : -.9),
+            f.hang.y + .05,
+            height * .5 / .62,
+            height,
+            1,
+            z: .6,
+            order: 11,
+            depthTest: true,
+          ),
+  ];
+
+  CameraFrame? cameraFocus(double playerX) {
+    if (doorOpen || pos.z <= .5) return null;
+    if (mode == 'carry' || (mode == 'back' && pos.y < bridgeEnd.y - .02)) {
+      return CameraFrame(
+        math.min(playerX - .8, 22),
+        26.4,
+        -.8,
+        bridgeEnd.y + .3,
+      );
+    }
+    return null;
+  }
+
   String get doorState => chimeTime >= 0 || doorOpen
       ? 'awake'
       : doorRun != null

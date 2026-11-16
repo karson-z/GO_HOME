@@ -201,9 +201,9 @@ const levels = <Level>[
     callerY: 1.5,
     exit: 32,
     song: 'puzzle-squirrel',
-    calls: ['squirrel-harp-head', 'squirrel-harp', 'squirrel-harp-door'],
+    calls: ['squirrel-harp'],
     scenes: ['sq-v3_scene.glb'],
-    instruction: '听松鼠的竖琴。依次回应三段旋律，打开石门。',
+    instruction: '回应竖琴唤醒松鼠，弹出果实对应的单音指挥搬运，再回应石门的旋律。',
     platforms: [Platform('ground', -20, 40, 0)],
   ),
   Level(

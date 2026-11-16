@@ -277,7 +277,7 @@ class GameController extends ChangeNotifier {
     final key = '$levelIndex:$round';
     final caller = _callers.putIfAbsent(key, () {
       final adapter = OriginalMelodyJudge(
-        squirrel != null ? scores.melodies['squirrel-harp-head']! : melody!,
+        melody!,
         tolerance: RhythmTolerance.chapter(level.period),
         chords:
             (level.kind == PuzzleKind.bat && round == 1) ||
@@ -1530,6 +1530,16 @@ class GameController extends ChangeNotifier {
         localX < 43) {
       vx = 9.2;
     }
+    final squirrelFocus = sq?.cameraFocus(localX);
+    final s = segment;
+    camera?.focus = squirrelFocus == null || s == null
+        ? null
+        : CameraFrame(
+            squirrelFocus.minX + s.ox,
+            squirrelFocus.maxX + s.ox,
+            squirrelFocus.minY + s.oy,
+            squirrelFocus.maxY + s.oy,
+          );
     camera?.update(dt, x, y, vx, PlayerPhysics.maxSpeed, grounded);
     if (route != null) {
       final next = route!.segmentAt(x);
