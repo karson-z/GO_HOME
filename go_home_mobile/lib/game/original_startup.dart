@@ -2,8 +2,9 @@ import 'dart:math' as math;
 
 /// Original EN with the shipped vN timing and noise fog-clear variant.
 class OriginalStartup {
-  OriginalStartup({required this.needsCalibration});
+  OriginalStartup({required this.needsCalibration, this.back = false});
   final bool needsCalibration;
+  final bool back;
   String phase = 'loading';
   double now = 0;
   double? clickAt, calibrationAt, outAt, arriveAt;
@@ -11,11 +12,15 @@ class OriginalStartup {
   bool get holding => !['clear', 'done'].contains(phase);
   bool get tuning => phase == 'cal';
   bool get canPress => phase == 'phones';
-  double get fogProgress =>
-      arriveAt == null ? 0 : smooth((now - arriveAt! - .3) / .9);
+  double get fogProgress => arriveAt == null
+      ? 0
+      : smooth(back ? (now - arriveAt!) / .35 : (now - arriveAt! - .3) / .9);
   double get fogOpacity => math.min(1, (1 - fogProgress) / .15);
-  double get phonesOpacity =>
-      clickAt == null ? 1 : 1 - easeOut((now - clickAt! - .2) / .35);
+  double get phonesOpacity => back
+      ? 0
+      : clickAt == null
+      ? 1
+      : 1 - easeOut((now - clickAt! - .2) / .35);
   double get calibrationOpacity => calibrationAt == null
       ? 0
       : easeOut((now - calibrationAt!) / .35) *
@@ -53,7 +58,10 @@ class OriginalStartup {
 
   void update(double time, {required bool ready}) {
     now = time;
-    if (phase == 'loading' && ready) phase = 'phones';
+    if (phase == 'loading' && ready) {
+      phase = back ? 'clear' : 'phones';
+      if (back) arriveAt = now;
+    }
     if (phase == 'tapped' && now - clickAt! >= .2) {
       if (needsCalibration) {
         calibrationAt = now;

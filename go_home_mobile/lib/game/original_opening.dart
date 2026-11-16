@@ -4,9 +4,10 @@ import 'original_ending_flight.dart';
 
 /// Authored Wj/Kj stand-up keys and gM opening timings from the source build.
 class OriginalOpening {
-  OriginalOpening(this.data, {this.immediateMenu = false});
+  OriginalOpening(this.data, {this.immediateMenu = false, this.back = false});
   final Map<String, dynamic> data;
   final bool immediateMenu;
+  final bool back;
   double time = 0;
   double? goAt;
   double? arriveFrom = 0;
@@ -16,8 +17,8 @@ class OriginalOpening {
   double get walked => stood + 2;
   bool get finished => started && age >= walked;
   double get arrivalAge =>
-      immediateMenu ? 5.5 + time : time - (arriveFrom ?? time);
-  double get menuAge => arrivalAge - 6.1;
+      immediateMenu || back ? 5.5 + time : time - (arriveFrom ?? time);
+  double get menuAge => back ? 100 + time : arrivalAge - 6.1;
   double get menuAlpha => started ? 0 : endingSmooth(menuAge / .8);
   double get sitX => 2.5 + (data['tree']['sitDx'] as num).toDouble();
   double get boyX => sitX + 2.4 * endingSmooth((age - stood) / 2);

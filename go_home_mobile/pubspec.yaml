@@ -39,6 +39,7 @@ flutter:
     - assets/startup/
   shaders:
     - shaders/startup_fog.frag
+    - shaders/resume_veil.frag
   fonts:
     - family: Xiaolai
       fonts:

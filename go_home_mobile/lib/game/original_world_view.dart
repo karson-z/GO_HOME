@@ -520,9 +520,12 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
     }
     game.update(dt);
     if (game.loading && transition == null) {
+      final revision = game.sceneRevision;
       transition = stream(blocking: true)
           .then((_) {
-            if (!disposed && error == null) game.sceneReady();
+            if (!disposed && error == null && revision == game.sceneRevision) {
+              game.sceneReady();
+            }
           })
           .whenComplete(() => transition = null);
     }
@@ -531,7 +534,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       streamClock = 0;
       unawaited(stream());
     }
-    final openingMenu = game.mode == GameMode.menu && !game.hasSave;
+    final openingMenu = game.mode == GameMode.menu && game.opening != null;
     final opening = game.opening;
     final openingShot = openingMenu || opening != null;
     final menuX =

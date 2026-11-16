@@ -407,7 +407,12 @@ class NativeRouteAudio {
               startup.arriveAt != null ||
               startup.outAt != null && startup.now >= startup.outAt! + .15);
       final shouldRun =
-          (game.isPlaying || menuMusic) && game.endingState?.startedAt == null;
+          (game.isPlaying ||
+              menuMusic ||
+              game.resuming != null &&
+                  game.mode == GameMode.playing &&
+                  !game.loading) &&
+          game.endingState?.startedAt == null;
       if (!shouldRun) {
         if (_running) _silence();
         return;

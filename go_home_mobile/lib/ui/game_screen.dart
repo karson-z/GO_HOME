@@ -9,6 +9,7 @@ import 'original_startup_overlay.dart';
 import 'original_start_menu.dart';
 import 'original_settings.dart';
 import 'original_pause_menu.dart';
+import 'original_resume_veil.dart';
 import '../game/world_view.dart';
 import '../game/original_world_view.dart';
 
@@ -43,6 +44,7 @@ class _GameScreenState extends State<GameScreen> {
       return pauseKey.currentState?.handleKey(event) ?? true;
     }
     final key = event.logicalKey;
+    if (game.resuming != null) return true;
     final startup = game.startup;
     if (startup != null && startup.holding) {
       if (event is KeyDownEvent) {
@@ -162,6 +164,17 @@ class _GameScreenState extends State<GameScreen> {
             GameMode.playing => _hud(),
           },
         ),
+        AnimatedBuilder(
+          animation: game,
+          builder: (context, _) => game.resuming == null
+              ? const SizedBox.shrink()
+              : AbsorbPointer(
+                  child: Opacity(
+                    opacity: game.resuming!.opacity,
+                    child: const OriginalResumeVeil(),
+                  ),
+                ),
+        ),
         OriginalStartMenu(
           game: game,
           onSettings: _settings,
@@ -191,74 +204,76 @@ class _GameScreenState extends State<GameScreen> {
       ],
     ),
   );
-  Widget _hud() => Stack(
-    children: [
-      if (game.opening == null)
-        Positioned.fill(child: TransparentGameInput(game: game)),
-      if (game.opening == null && !game.cinematic && !game.loading)
-        OriginalMenuCorner(onTap: game.pause, english: game.english),
-      if (game.chapterHints.current != null)
-        Positioned(
-          top: MediaQuery.sizeOf(context).height * .24,
-          left: 0,
-          right: 0,
-          child: IgnorePointer(
-            child: Opacity(
-              opacity: game.chapterHints.alpha,
-              child: Column(
-                children: [
-                  Text(
-                    game.chapterHints.current == 'night' ? '半夜' : '天亮',
-                    style: const TextStyle(
-                      fontSize: 44,
-                      fontWeight: FontWeight.w300,
-                      letterSpacing: 22,
-                      color: Color(0xfff4f1ec),
-                      shadows: [
-                        Shadow(blurRadius: 18, color: Color(0x59000000)),
+  Widget _hud() => game.resuming != null
+      ? const SizedBox.shrink()
+      : Stack(
+          children: [
+            if (game.opening == null)
+              Positioned.fill(child: TransparentGameInput(game: game)),
+            if (game.opening == null && !game.cinematic && !game.loading)
+              OriginalMenuCorner(onTap: game.pause, english: game.english),
+            if (game.chapterHints.current != null)
+              Positioned(
+                top: MediaQuery.sizeOf(context).height * .24,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Opacity(
+                    opacity: game.chapterHints.alpha,
+                    child: Column(
+                      children: [
+                        Text(
+                          game.chapterHints.current == 'night' ? '半夜' : '天亮',
+                          style: const TextStyle(
+                            fontSize: 44,
+                            fontWeight: FontWeight.w300,
+                            letterSpacing: 22,
+                            color: Color(0xfff4f1ec),
+                            shadows: [
+                              Shadow(blurRadius: 18, color: Color(0x59000000)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          game.chapterHints.current == 'night'
+                              ? 'MIDNIGHT'
+                              : 'DAWN',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            letterSpacing: 5.2,
+                            color: Color(0xbff4f1ec),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    game.chapterHints.current == 'night' ? 'MIDNIGHT' : 'DAWN',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      letterSpacing: 5.2,
-                      color: Color(0xbff4f1ec),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      if ((game.ending?.titleAlpha ?? 0) > 0)
-        Center(
-          child: IgnorePointer(
-            child: Opacity(
-              opacity: _smooth(game.ending!.titleAlpha),
-              child: Text(
-                'By Blizzardfan',
-                style: TextStyle(
-                  color: const Color(0xfffbf3e4),
-                  fontFamily: 'Gaegu',
-                  fontWeight: FontWeight.w300,
-                  fontSize: (MediaQuery.sizeOf(context).width * .042).clamp(
-                    28.0,
-                    56.0,
-                  ),
-                  letterSpacing: 5,
-                  shadows: const [
-                    Shadow(color: Color(0x99fff0d2), blurRadius: 18),
-                  ],
                 ),
               ),
-            ),
-          ),
-        ),
-    ],
-  );
+            if ((game.ending?.titleAlpha ?? 0) > 0)
+              Center(
+                child: IgnorePointer(
+                  child: Opacity(
+                    opacity: _smooth(game.ending!.titleAlpha),
+                    child: Text(
+                      'By Blizzardfan',
+                      style: TextStyle(
+                        color: const Color(0xfffbf3e4),
+                        fontFamily: 'Gaegu',
+                        fontWeight: FontWeight.w300,
+                        fontSize: (MediaQuery.sizeOf(context).width * .042)
+                            .clamp(28.0, 56.0),
+                        letterSpacing: 5,
+                        shadows: const [
+                          Shadow(color: Color(0x99fff0d2), blurRadius: 18),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
   double _smooth(double t) => t * t * (3 - 2 * t);
   Widget _complete() => ColoredBox(
     color: const Color(0x772e3c42),

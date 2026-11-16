@@ -21,6 +21,7 @@ import 'original_firefly.dart';
 import 'original_ending.dart';
 import 'original_opening.dart';
 import 'original_startup.dart';
+import 'original_resume.dart';
 
 class _ScheduledCall {
   const _ScheduledCall(this.level, this.id, this.at, this.hum, this.native);
@@ -64,6 +65,9 @@ class GameController extends ChangeNotifier {
   }
   OriginalOpening? opening;
   OriginalStartup? startup;
+  OriginalResume? resuming;
+  Map<String, dynamic>? _menuSave;
+  bool _changingScene = false;
   bool startupAudioReady = false, audioCalibrated = false;
   double masterVolume = .9;
   int sliderSerial = 0;
@@ -87,21 +91,46 @@ class GameController extends ChangeNotifier {
     settingsChanged();
   }
 
-  void prepareOpening({bool immediate = false}) {
-    if (route == null || hasSave) return;
+  void prepareOpening({bool immediate = false, bool back = false}) {
+    if (route == null) return;
+    if (hasSave && _menuSave == null) _menuSave = toJson();
+    if (mode == GameMode.menu || back) {
+      _changingScene = true;
+      start(restart: true);
+      _changingScene = false;
+      mode = GameMode.menu;
+      clock = animationTime = 0;
+      camera = RouteCamera(route!.zones, aspect: camera?.aspect ?? 16 / 9);
+    }
     final spec = route!.mechanisms['opening'];
     if (spec != null) {
       opening = OriginalOpening(
         Map<String, dynamic>.from(spec),
         immediateMenu: immediate,
+        back: back,
       );
+      x = opening!.sitX;
+      y = 10;
+      camera?.snap(x, y);
     }
   }
 
   void beginJourney({bool restart = false}) {
+    if (resuming != null) return;
+    if (!restart && hasSave && route != null && opening != null) {
+      resuming = OriginalResume();
+      directions.clear();
+      jumpPointers.clear();
+      heldNotes.clear();
+      notifyListeners();
+      return;
+    }
     final fresh = restart || !hasSave;
     final intro = opening;
+    if (restart) _menuSave = null;
+    _changingScene = true;
     start(restart: restart);
+    _changingScene = false;
     if (fresh && route != null) {
       if (intro != null && !restart) {
         opening = intro;
@@ -115,6 +144,7 @@ class GameController extends ChangeNotifier {
       player.safeY = y;
       notifyListeners();
     }
+    _save();
   }
 
   final OriginalRoute? route;
@@ -488,7 +518,8 @@ class GameController extends ChangeNotifier {
   Future<void> Function()? onSave;
   Level get level => segment?.metadata(levelIndex) ?? levels[levelIndex];
   bool get isSolved => solved.contains(levelIndex);
-  bool get isPlaying => mode == GameMode.playing && !loading;
+  bool get isPlaying =>
+      mode == GameMode.playing && !loading && resuming == null;
   bool get isDemo =>
       firefly?.phase == 'sing' ||
       firefly?.phase == 'relay' ||
@@ -529,9 +560,55 @@ class GameController extends ChangeNotifier {
       : judge?.expected ?? {};
   double get totalProgress => (solved.length.clamp(0, 8) / 8);
   bool get hasSave =>
-      solved.isNotEmpty ||
-      levelIndex > 0 ||
-      x > (route?.spawnX ?? levels.first.spawn) + .2;
+      _menuSave != null ||
+      (opening == null &&
+          (solved.isNotEmpty ||
+              levelIndex > 0 ||
+              x > (route?.spawnX ?? levels.first.spawn) + .2));
+
+  void _resumeCheckpoint() {
+    final saved = _menuSave;
+    if (saved == null || route == null) return;
+    var index = (saved['level'] as num).toInt();
+    final done = (saved['solved'] as List).cast<int>();
+    if (done.contains(index)) {
+      index = math.min(index + 1, route!.segments.length - 1);
+    }
+    // Original saveHooks.resume -> goto(at): chapter entry, prior chapters solved.
+    final checkpoint = <String, dynamic>{
+      ...saved,
+      ..._settingsJson(),
+      'level': index,
+      'round': 0,
+      'solved': List.generate(index, (i) => i),
+      'x': route!.segments[index].x0 + .3,
+      'y': route!.segments[index].entryY,
+      'clock': 0.0,
+      for (final key in [
+        'hedgehog',
+        'bat',
+        'owl',
+        'turtle',
+        'squirrel',
+        'bear',
+        'woodpecker',
+        'firefly',
+        'ending',
+      ])
+        key: null,
+    };
+    _changingScene = true;
+    start(restart: true);
+    restore(checkpoint);
+    _changingScene = false;
+    _menuSave = null;
+    mode = GameMode.playing;
+    player.vx = player.vy = 0;
+    player.grounded = true;
+    camera = RouteCamera(route!.zones, aspect: camera?.aspect ?? 16 / 9)
+      ..snap(x, y);
+    loading = true;
+  }
 
   List<Platform> get platforms {
     final p = <Platform>[];
@@ -778,8 +855,14 @@ class GameController extends ChangeNotifier {
   }
 
   void start({bool restart = false}) {
+    if (!restart && _menuSave != null) {
+      _resumeCheckpoint();
+      notifyListeners();
+      return;
+    }
     opening = null;
     if (restart) {
+      if (!_changingScene) _menuSave = null;
       journeyRevision++;
       chapterHints.reset();
       solved.clear();
@@ -806,7 +889,7 @@ class GameController extends ChangeNotifier {
       }
     } else {
       directions.clear();
-      notifyListeners();
+      if (!_changingScene) notifyListeners();
     }
     _save();
   }
@@ -844,7 +927,7 @@ class GameController extends ChangeNotifier {
     glowingNotes.clear();
     heldNotes.clear();
     message = level.instruction;
-    notifyListeners();
+    if (!_changingScene) notifyListeners();
     _save();
   }
 
@@ -870,7 +953,7 @@ class GameController extends ChangeNotifier {
   }
 
   void pause() {
-    if (mode != GameMode.playing) return;
+    if (mode != GameMode.playing || resuming != null) return;
     mode = GameMode.paused;
     directions.clear();
     jumpPointers.clear();
@@ -884,17 +967,25 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void menu() {
+  void menu({bool back = true}) {
+    if (resuming != null) return;
     mode = GameMode.menu;
     directions.clear();
     jumpPointers.clear();
     heldNotes.clear();
+    _tapJump = false;
+    if (route != null) {
+      prepareOpening(back: back, immediate: !back);
+      startup = back
+          ? OriginalStartup(needsCalibration: false, back: true)
+          : null;
+    }
     notifyListeners();
     _save();
   }
 
   void setDirection(int pointer, int direction) {
-    if (opening == null) directions[pointer] = direction;
+    if (opening == null && resuming == null) directions[pointer] = direction;
   }
 
   void releaseDirection(int pointer) {
@@ -1104,6 +1195,24 @@ class GameController extends ChangeNotifier {
   }
 
   void update(double dt) {
+    final resume = resuming;
+    if (resume != null) {
+      if (!loading) {
+        final elapsed = dt.clamp(0.0, .1);
+        clock += elapsed;
+        animationTime += elapsed;
+        opening?.update(elapsed);
+      }
+      final phase = resume.phase;
+      resume.update(dt, ready: !loading);
+      if (phase == 'jump') _resumeCheckpoint();
+      if (resume.done) {
+        resuming = null;
+        _save();
+      }
+      notifyListeners();
+      return;
+    }
     final intro = opening;
     if (intro != null && mode != GameMode.paused && !loading) {
       intro.update(dt);
@@ -1180,7 +1289,7 @@ class GameController extends ChangeNotifier {
       camera!.update(dt, x, y, 0, PlayerPhysics.maxSpeed, true);
       if (end.finished) {
         start(restart: true);
-        menu();
+        menu(back: false);
       }
       return;
     }
@@ -1460,16 +1569,34 @@ class GameController extends ChangeNotifier {
   void _sound(GameSound kind, {int? note, String? call, double gain = 1}) =>
       onSound?.call(SoundEvent(kind, note: note, call: call, gain: gain));
   void _save() {
+    if (_changingScene || resuming != null) return;
     onSave?.call();
   }
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson() =>
+      _menuSave != null ? {..._menuSave!, ..._settingsJson()} : _progressJson();
+
+  Map<String, dynamic> _settingsJson() => {
+    'hints': hints,
+    'hintMode': hintMode,
+    'quality': quality,
+    'strictRhythm': strictRhythm,
+    'music': musicVolume,
+    'master': masterVolume,
+    'audioCalibrated': audioCalibrated,
+    'sfx': sfxVolume,
+    'english': english,
+    'lowQuality': lowQuality,
+    'haptics': haptics,
+  };
+
+  Map<String, dynamic> _progressJson() => {
     'version': route == null ? 1 : 2,
     'level': levelIndex,
     'round': round,
     'solved': solved.toList(),
-    'x': lastSafeX,
-    'y': lastSafeY,
+    'x': opening != null ? route?.spawnX ?? lastSafeX : lastSafeX,
+    'y': opening != null ? route?.spawnY ?? lastSafeY : lastSafeY,
     'hints': hints,
     'hintMode': hintMode,
     'quality': quality,

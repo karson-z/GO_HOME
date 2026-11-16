@@ -4,7 +4,7 @@
 
 ## 单元和原版数值对照
 
-`flutter test --no-pub --reporter expanded`：**197 项通过**。测试包含原版模块离线导出的参考值，Flutter 测试执行过程不运行 JS。
+`flutter test --no-pub --reporter expanded`：**201 项通过**。测试包含原版模块离线导出的参考值，Flutter 测试执行过程不运行 JS。
 
 覆盖物理和推物、三种宽高比的镜头、音符/节拍/和弦判定、通用动物示范状态机、八个动物机关、开场、连续路线、色板/混色/场景调色、主角、家人、结尾骑行/路径/队形/飞行。代表性范围：
 
@@ -51,13 +51,24 @@
 
 ## 暂停专项
 
-`integration_test/original_pause_test.dart` 在同一 iOS 模拟器通过，捕获手绘菜单入口、中文暂停、选择设置、英文暂停、返回标题共 5 张系统截图。检查无旧暂停标题、安全位置按钮及 FilledButton；原版三项和中英文切换；右上入口、上下选择、Enter 确认、Esc/P 恢复；确认的 200ms 延迟；设置返回保留选中行；暂停时人物/提示内部时钟、位置和相机保持，场景提示表现层淡出/恢复；暂停输入不穿透；回到标题保留章节及位置，并能继续；无 Flutter/原生音频异常。预览见 `pause-preview.jpg`，原始图见外层 `artifacts/pause-native/`。这不是跨浏览器/移动端逐像素认证。
+`integration_test/original_pause_test.dart` 在同一 iOS 模拟器通过，捕获手绘菜单入口、中文暂停、选择设置、英文暂停、返回标题、继续雾幕进入/停留/淡出和恢复关卡共 9 张系统截图。检查无旧暂停标题、安全位置按钮及 FilledButton；原版三项和中英文切换；右上入口、上下选择、Enter 确认、Esc/P 恢复；确认的 200ms 延迟；设置返回保留选中行；暂停时人物/提示内部时钟、位置和相机保持，场景提示表现层淡出/恢复；暂停输入不穿透；回到树下标题保留独立存档，以原版过渡继续至章节入口检查点；无 Flutter/原生音频异常。预览见 `pause-preview.jpg`，原始图见外层 `artifacts/pause-native/`。这不是跨浏览器/移动端逐像素认证。
 
 复现：`python3 tools/run_pause_regression.py <模拟器ID>`。
 
+## 返回标题与继续游戏专项
+
+原版参考为暂停 H 的 `toTree → session flag + reload`、EN/CN 的 back 分支、gM 的 `land(menuAfter:0, now:true)`、Bj.fire 与 nP.stepResume，以及 route.saveHooks.resume/goto。Dart 返回时重建树下场景和配乐时钟，保留独立进度；有存档冷启动仍显示原开场。继续恢复章节入口（x0 + 0.3），此前章节置为完成，当前章节从入口开始，配乐使用已有原 resume 编排。
+
+- 原版 nP prototype 离线导出正常加载与 8 秒超时两条轨迹，共 873 帧；Dart 逐帧核对阶段和雾幕透明度，误差限 1e-12。EN back 的 31 个时刻同样核对通过。
+- 返回雾幕复用原 gN 噪声场 GLSL，0.35 秒清除，跳过耳机/校准与标题重绘；继续遮罩使用单独 RuntimeEffect 实现原 ZN 的 sRGB 径向叠纵向渐变，0.9 秒遮入，场景就绪后停留 0.6 秒，1.4 秒退出。标题按原层级位于继续遮罩上方，保持原离场时序。原生停留截图的 283 个 sRGB 采样点与该 CSS 渐变公式最大误差为 1/255；可用 `python3 tools/verify_menu_veil.py` 复核。
+- 控制器测试覆盖菜单期间进度隔离、设置保存、输入隔离、场景加载门控、完成后恢复输入、重新开始及有存档冷启动。场景复位以一次通知提交，避免音频导演读到重置前的时钟。
+- iOS 专项覆盖返回树下、继续关键帧、恢复章节及无遗留镜头 hold；暂停中的继续保持原确认与淡出流程。截图见 `menu-transitions-preview.jpg` 和外层 `artifacts/pause-native/`，原版轨迹可用 `node tools/generate_resume_traces.mjs` 重建。
+
+这些验证覆盖上述过渡，未扩展为全游戏逐像素或逐音频采样一致认证。
+
 ## 图标核对
 
-`original-app-icon-verification.json` 检查原 ZIP 中声明的 ICNS 与工程保留文件逐字节一致，并检查 iOS/Android 共 20 个输出的全部 RGBA 像素等于原最高分辨率图像的相同尺寸缩放结果。`original-ui-icons-verification.json` 将 27 个耳机/点击/扬声器/树形/小点/入口/滑块 SVG 与原发行函数输出比较，仅忽略不影响画面的 data-n 实例计数；全部一致。Dart 游戏代码已无 Material 图标引用。设置专项在更新图标后重跑；原主线、启动及暂停完整回归记录沿用上一轮，行为代码未在本轮修改。
+`original-app-icon-verification.json` 检查原 ZIP 中声明的 ICNS 与工程保留文件逐字节一致，并检查 iOS/Android 共 20 个输出的全部 RGBA 像素等于原最高分辨率图像的相同尺寸缩放结果。`original-ui-icons-verification.json` 将 27 个耳机/点击/扬声器/树形/小点/入口/滑块 SVG 与原发行函数输出比较，仅忽略不影响画面的 data-n 实例计数；全部一致。Dart 游戏代码已无 Material 图标引用。设置专项在更新图标后重跑；图标输出保持不变；后续菜单过渡改动与回归见下节。
 
 ## 构建与交付
 

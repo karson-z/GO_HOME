@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../game/game_controller.dart';
 import '../game/original_startup.dart';
+import '../game/original_opening.dart';
 import 'original_hand_draw.dart';
 import 'original_side_fog.dart';
 
@@ -28,10 +29,20 @@ class OriginalStartMenu extends StatefulWidget {
 class _OriginalStartMenuState extends State<OriginalStartMenu> {
   int selected = 0;
   bool menuHadSave = false;
+  OriginalOpening? previousOpening;
+  double lastMenuAge = 100;
   Timer? pending;
   void choose(int index, VoidCallback action) {
     if (pending != null) return;
     setState(() => selected = index);
+    widget.game.previewSettings(
+      index == 1 && widget.game.hasSave
+          ? 10
+          : index == 2 || index == 1 && !widget.game.hasSave
+          ? 14
+          : 12,
+      gain: .6,
+    );
     pending = Timer(const Duration(milliseconds: 200), () {
       pending = null;
       if (mounted) action();
@@ -49,12 +60,19 @@ class _OriginalStartMenuState extends State<OriginalStartMenu> {
     animation: widget.game,
     builder: (context, _) {
       final game = widget.game, intro = game.opening;
-      final leaving = intro?.started ?? false;
-      if (game.mode != GameMode.menu && (!leaving || intro!.age >= 1.4)) {
+      if (intro != null && !identical(previousOpening, intro)) {
+        previousOpening = intro;
+        selected = 0;
+        pending?.cancel();
+        pending = null;
+      }
+      final leaving = game.resuming != null || (intro?.started ?? false);
+      final leaveAge = game.resuming?.time ?? (leaving ? intro!.age : 0.0);
+      if (game.mode != GameMode.menu && (!leaving || leaveAge >= 1.4)) {
         return const SizedBox.shrink();
       }
-      final age = intro?.menuAge ?? 100.0,
-          leaveAge = leaving ? intro!.age : 0.0;
+      if (intro != null) lastMenuAge = intro.menuAge;
+      final age = intro?.menuAge ?? lastMenuAge;
       final shell = leaving
           ? 1 - Curves.easeIn.transform(((leaveAge - .9) / .5).clamp(0.0, 1.0))
           : Curves.ease.transform((age / .8).clamp(0.0, 1.0));

@@ -190,7 +190,10 @@ class NativeGameHints {
     final dt = game.isPlaying ? (time - lastTime).clamp(0.0, .1) : 0.0;
     lastTime = time;
     final visible =
-        game.mode != GameMode.menu && game.opening == null && !game.loading;
+        game.mode != GameMode.menu &&
+        game.opening == null &&
+        !game.loading &&
+        game.resuming == null;
     root.visible = visible;
     woodApproach.visible = false;
     if (!visible) return;

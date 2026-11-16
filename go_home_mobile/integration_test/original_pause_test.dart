@@ -117,15 +117,40 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('pause-row-2')));
       await advance(tester, .6);
       expect(game.mode, GameMode.menu);
-      expect(game.levelIndex, 1);
-      expect(game.x, savedX);
+      expect(game.levelIndex, 0);
+      expect(game.x, closeTo(3.28, 1e-10));
+      expect(game.toJson()['level'], 1);
+      expect(game.toJson()['x'], savedX);
+      expect(game.opening!.back, isTrue);
+      expect(audio.routeAudio.time, greaterThanOrEqualTo(0));
       expect(game.hasSave, isTrue);
       expect(find.text('Continue'), findsOneWidget);
       expect(find.text('Go Home'), findsNWidgets(3));
       await capture(tester, 'pause-return-title');
-      game.start();
-      await advance(tester, .5);
+      // Continue hides the tree with the source ZN veil before streaming.
+      await tester.tap(find.text('Continue'));
+      await until(
+        tester,
+        () => game.resuming != null && game.resuming!.time >= .25,
+      );
+      expect(game.resuming, isNotNull);
+      expect(game.levelIndex, 0);
+      await capture(tester, 'continue-fog-in');
+      await until(tester, () => game.resuming!.phase != 'in');
+      expect(game.resuming!.opacity, 1);
+      await capture(tester, 'continue-fog-hold');
+      await until(tester, () => game.resuming!.phase == 'out');
+      await advance(tester, .3);
+      expect(game.resuming, isNotNull);
+      await capture(tester, 'continue-fog-out');
+      await until(tester, () => game.resuming == null);
+      expect(game.resuming, isNull);
       expect(game.levelIndex, 1);
+      expect(game.x, closeTo(game.route!.segments[1].x0 + .3, .01));
+      expect(game.camera!.hold, isNull);
+      expect(audio.routeAudio.time, greaterThanOrEqualTo(0));
+      expect(world.hintsView.root.visible, isTrue);
+      await capture(tester, 'continue-chapter');
       expect(audio.error, isNull);
       expect(audio.routeAudio.error, isNull);
       expect(tester.takeException(), isNull);
@@ -138,6 +163,18 @@ void main() {
   );
 }
 
+Future<void> until(WidgetTester tester, bool Function() ready) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 20));
+  while (!ready() && DateTime.now().isBefore(deadline)) {
+    await advance(tester, .05);
+  }
+  expect(
+    ready(),
+    isTrue,
+    reason: 'native transition did not reach expected phase',
+  );
+}
+
 Future<void> advance(WidgetTester tester, double seconds) async {
   for (var i = 0; i < (seconds * 20).ceil(); i++) {
     await tester.pump(const Duration(milliseconds: 50));
@@ -146,7 +183,14 @@ Future<void> advance(WidgetTester tester, double seconds) async {
 }
 
 Future<void> capture(WidgetTester tester, String name) async {
-  await advance(tester, .2);
+  final dynamic world = tester.state(find.byType(OriginalWorldView));
+  final freeze = name.startsWith('continue-fog');
+  if (freeze) {
+    world.renderer.pause = true;
+    await tester.pump();
+  } else {
+    await advance(tester, .2);
+  }
   final ack = File('${Directory.systemTemp.path}/$name.capture-ack');
   if (await ack.exists()) await ack.delete();
   debugPrintSynchronously('PAUSE_CAPTURE $name ${ack.path}');
@@ -155,4 +199,5 @@ Future<void> capture(WidgetTester tester, String name) async {
     await Future<void>.delayed(const Duration(milliseconds: 50));
   }
   if (await ack.exists()) await ack.delete();
+  if (freeze) world.renderer.pause = false;
 }
