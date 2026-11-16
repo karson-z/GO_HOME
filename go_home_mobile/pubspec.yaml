@@ -1,0 +1,51 @@
+name: go_home_mobile
+description: Go Home — a native Flutter musical journey, rendered with Dart three_js.
+publish_to: none
+version: 1.0.0+1
+environment:
+  sdk: ^3.13.1
+  flutter: '>=3.47.1'
+dependencies:
+  flutter:
+    sdk: flutter
+  three_js: ^0.3.0
+  audioplayers: ^6.7.1
+  flutter_soloud: ^5.2.3
+  shared_preferences: ^2.5.5
+  flutter_svg: ^2.4.0
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/data/
+    - assets/world/
+    - assets/world/textures/
+    - assets/models/
+    - assets/characters/
+    - assets/audio/notes/
+    - assets/audio/calls/
+    - assets/audio/music/
+    - assets/audio/ambience/
+    - assets/audio/sfx/
+    - assets/audio/voices/
+    - assets/audio/route/
+    - assets/fonts/
+    - assets/hints/
+    - assets/startup/
+  shaders:
+    - shaders/startup_fog.frag
+  fonts:
+    - family: Xiaolai
+      fonts:
+        - asset: assets/fonts/xiaolai.ttf
+    - family: Wenkai
+      fonts:
+        - asset: assets/fonts/wenkai.ttf
+    - family: Gaegu
+      fonts:
+        - asset: assets/fonts/gaegu.ttf

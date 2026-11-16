@@ -1,0 +1,1359 @@
+{
+  "firefly-flute-1": {
+    "id": "firefly-flute-1",
+    "animal": "firefly",
+    "instrument": "flute",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 73,
+        "len": 8,
+        "vel": 0.48
+      }
+    ],
+    "keys": [
+      1
+    ]
+  },
+  "firefly-flute-2": {
+    "id": "firefly-flute-2",
+    "animal": "firefly",
+    "instrument": "flute",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 77,
+        "len": 8,
+        "vel": 0.48
+      }
+    ],
+    "keys": [
+      3
+    ]
+  },
+  "firefly-flute-3": {
+    "id": "firefly-flute-3",
+    "animal": "firefly",
+    "instrument": "flute",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 73,
+        "len": 2,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 77,
+        "len": 2,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 80,
+        "len": 4,
+        "vel": 0.48
+      }
+    ],
+    "keys": [
+      1,
+      3,
+      5
+    ]
+  },
+  "firefly-flute-4": {
+    "id": "firefly-flute-4",
+    "animal": "firefly",
+    "instrument": "flute",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 80,
+        "len": 2,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 77,
+        "len": 1,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 75,
+        "len": 1,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 73,
+        "len": 3,
+        "vel": 0.48
+      }
+    ],
+    "keys": [
+      5,
+      3,
+      2,
+      1
+    ]
+  },
+  "hedgehog-pizz": {
+    "id": "hedgehog-pizz",
+    "animal": "hedgehog",
+    "instrument": "cello-pizz",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 49,
+        "len": 1,
+        "vel": 0.79
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 49,
+        "len": 1,
+        "vel": 0.79
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 53,
+        "len": 1,
+        "vel": 0.79
+      },
+      {
+        "bar": 0,
+        "step": 12,
+        "midi": 56,
+        "len": 1,
+        "vel": 0.79
+      }
+    ],
+    "keys": [
+      1,
+      1,
+      3,
+      5
+    ]
+  },
+  "squirrel-harp-head": {
+    "id": "squirrel-harp-head",
+    "animal": "squirrel",
+    "instrument": "harp",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 77,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 2,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 77,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 82,
+        "len": 2,
+        "vel": 0.78
+      }
+    ],
+    "keys": [
+      3,
+      5,
+      3,
+      5,
+      6
+    ]
+  },
+  "squirrel-harp": {
+    "id": "squirrel-harp",
+    "animal": "squirrel",
+    "instrument": "harp",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 73,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 2,
+        "midi": 77,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 5,
+        "midi": 82,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 7,
+        "midi": 84,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 9,
+        "midi": 82,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 11,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 13,
+        "midi": 77,
+        "len": 1,
+        "vel": 0.78
+      }
+    ],
+    "keys": [
+      1,
+      3,
+      5,
+      6,
+      7,
+      6,
+      5,
+      3
+    ]
+  },
+  "squirrel-harp-door": {
+    "id": "squirrel-harp-door",
+    "animal": "squirrel",
+    "instrument": "harp",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 73,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 3,
+        "midi": 73,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 82,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 73,
+        "len": 1,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 10,
+        "midi": 82,
+        "len": 2,
+        "vel": 0.78
+      },
+      {
+        "bar": 0,
+        "step": 12,
+        "midi": 84,
+        "len": 2,
+        "vel": 0.78
+      }
+    ],
+    "keys": [
+      1,
+      1,
+      6,
+      1,
+      6,
+      7
+    ]
+  },
+  "bat-v1": {
+    "id": "bat-v1",
+    "animal": "bat",
+    "instrument": "violins",
+    "song": "night",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 68,
+        "len": 3,
+        "vel": 0.7
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 65,
+        "len": 1,
+        "vel": 0.7
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 68,
+        "len": 1,
+        "vel": 0.7
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 70,
+        "len": 2,
+        "vel": 0.7
+      },
+      {
+        "bar": 0,
+        "step": 12,
+        "midi": 68,
+        "len": 3,
+        "vel": 0.7
+      }
+    ],
+    "keys": [
+      5,
+      3,
+      5,
+      6,
+      5
+    ]
+  },
+  "bat-v2": {
+    "id": "bat-v2",
+    "animal": "bat",
+    "instrument": "violins",
+    "song": "night",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 72,
+        "len": 4,
+        "vel": 0.7
+      },
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 68,
+        "len": 4,
+        "vel": 0.7
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 65,
+        "len": 4,
+        "vel": 0.7
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 68,
+        "len": 4,
+        "vel": 0.7
+      }
+    ],
+    "keys": [
+      7,
+      5,
+      3,
+      5
+    ]
+  },
+  "owl-v1": {
+    "id": "owl-v1",
+    "animal": "owl",
+    "instrument": "clarinet",
+    "song": "night",
+    "bars": 2,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 61,
+        "len": 4,
+        "vel": 0.63
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 65,
+        "len": 4,
+        "vel": 0.63
+      },
+      {
+        "bar": 0,
+        "step": 12,
+        "midi": 68,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 0,
+        "step": 14,
+        "midi": 65,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 0,
+        "midi": 70,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 2,
+        "midi": 68,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 6,
+        "midi": 65,
+        "len": 4,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 12,
+        "midi": 68,
+        "len": 4,
+        "vel": 0.63
+      }
+    ],
+    "keys": [
+      1,
+      3,
+      5,
+      3,
+      6,
+      5,
+      3,
+      5
+    ]
+  },
+  "turtle-v1": {
+    "id": "turtle-v1",
+    "animal": "turtle",
+    "instrument": "tuba",
+    "song": "night",
+    "bars": 2,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 49,
+        "len": 16,
+        "vel": 0.76
+      },
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 56,
+        "len": 16,
+        "vel": 0.76
+      },
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 53,
+        "len": 16,
+        "vel": 0.76
+      }
+    ],
+    "keys": [
+      1,
+      5,
+      3
+    ]
+  },
+  "turtle-v2": {
+    "id": "turtle-v2",
+    "animal": "turtle",
+    "instrument": "tuba",
+    "song": "night",
+    "bars": 2,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 53,
+        "len": 16,
+        "vel": 0.76
+      },
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 58,
+        "len": 16,
+        "vel": 0.76
+      },
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 56,
+        "len": 16,
+        "vel": 0.76
+      }
+    ],
+    "keys": [
+      3,
+      6,
+      5
+    ]
+  },
+  "turtle-v3": {
+    "id": "turtle-v3",
+    "animal": "turtle",
+    "instrument": "tuba",
+    "song": "night",
+    "bars": 2,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 53,
+        "len": 16,
+        "vel": 0.76
+      },
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 56,
+        "len": 16,
+        "vel": 0.76
+      },
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 60,
+        "len": 16,
+        "vel": 0.76
+      },
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 49,
+        "len": 16,
+        "vel": 0.76
+      }
+    ],
+    "keys": [
+      3,
+      5,
+      7,
+      1
+    ]
+  },
+  "bear-v1": {
+    "id": "bear-v1",
+    "animal": "bear",
+    "instrument": "bassoon-ms",
+    "song": "dawn",
+    "bars": 2,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 44,
+        "len": 4,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 41,
+        "len": 2,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 44,
+        "len": 2,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 46,
+        "len": 2,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 10,
+        "midi": 44,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 11,
+        "midi": 46,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 12,
+        "midi": 44,
+        "len": 2,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 14,
+        "midi": 41,
+        "len": 2,
+        "vel": 0.8
+      },
+      {
+        "bar": 1,
+        "step": 4,
+        "midi": 44,
+        "len": 4,
+        "vel": 0.8
+      },
+      {
+        "bar": 1,
+        "step": 4,
+        "midi": 48,
+        "len": 4,
+        "vel": 0.8
+      },
+      {
+        "bar": 1,
+        "step": 12,
+        "midi": 44,
+        "len": 4,
+        "vel": 0.8
+      },
+      {
+        "bar": 1,
+        "step": 12,
+        "midi": 48,
+        "len": 4,
+        "vel": 0.8
+      }
+    ],
+    "keys": [
+      5,
+      3,
+      5,
+      6,
+      5,
+      6,
+      5,
+      3,
+      5,
+      7,
+      5,
+      7
+    ]
+  },
+  "woodpecker-v1": {
+    "id": "woodpecker-v1",
+    "animal": "woodpecker",
+    "instrument": "balafon",
+    "song": "dawn",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 2,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 10,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 14,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      }
+    ],
+    "keys": [
+      5,
+      5,
+      5,
+      5,
+      5
+    ]
+  },
+  "woodpecker-v2": {
+    "id": "woodpecker-v2",
+    "animal": "woodpecker",
+    "instrument": "balafon",
+    "song": "dawn",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 2,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 3,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 12,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      }
+    ],
+    "keys": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+    ]
+  },
+  "owl-v2": {
+    "id": "owl-v2",
+    "animal": "owl",
+    "instrument": "clarinet",
+    "song": "night",
+    "bars": 2,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 65,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 0,
+        "step": 2,
+        "midi": 68,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 70,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 72,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 70,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 0,
+        "step": 10,
+        "midi": 68,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 0,
+        "step": 12,
+        "midi": 65,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 0,
+        "step": 14,
+        "midi": 68,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 0,
+        "midi": 65,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 2,
+        "midi": 61,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 4,
+        "midi": 65,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 6,
+        "midi": 68,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 8,
+        "midi": 70,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 10,
+        "midi": 68,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 12,
+        "midi": 65,
+        "len": 2,
+        "vel": 0.63
+      },
+      {
+        "bar": 1,
+        "step": 14,
+        "midi": 68,
+        "len": 2,
+        "vel": 0.63
+      }
+    ],
+    "keys": [
+      3,
+      5,
+      6,
+      7,
+      6,
+      5,
+      3,
+      5,
+      3,
+      1,
+      3,
+      5,
+      6,
+      5,
+      3,
+      5
+    ]
+  },
+  "woodpecker-v3": {
+    "id": "woodpecker-v3",
+    "animal": "woodpecker",
+    "instrument": "balafon",
+    "song": "dawn",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 2,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 3,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 9,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 11,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 12,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 14,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 15,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      }
+    ],
+    "keys": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+    ]
+  },
+  "woodpecker-r3a": {
+    "id": "woodpecker-r3a",
+    "animal": "woodpecker",
+    "instrument": "balafon",
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 2,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 3,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      }
+    ],
+    "keys": [
+      5,
+      5,
+      5,
+      5,
+      5
+    ]
+  },
+  "woodpecker-r3b": {
+    "id": "woodpecker-r3b",
+    "animal": "woodpecker",
+    "instrument": "balafon",
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 1,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 3,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      },
+      {
+        "bar": 0,
+        "step": 7,
+        "midi": 80,
+        "len": 1,
+        "vel": 0.8
+      }
+    ],
+    "keys": [
+      5,
+      5,
+      5,
+      5,
+      5,
+      5
+    ]
+  },
+  "firefly-drill-2-0": {
+    "id": "firefly-drill-2-0",
+    "animal": "firefly",
+    "instrument": "flute",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 73,
+        "len": 2,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 77,
+        "len": 2,
+        "vel": 0.48
+      }
+    ],
+    "keys": [
+      1,
+      3
+    ]
+  },
+  "firefly-drill-2-1": {
+    "id": "firefly-drill-2-1",
+    "animal": "firefly",
+    "instrument": "flute",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 77,
+        "len": 2,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 80,
+        "len": 4,
+        "vel": 0.48
+      }
+    ],
+    "keys": [
+      3,
+      5
+    ]
+  },
+  "firefly-drill-3-0": {
+    "id": "firefly-drill-3-0",
+    "animal": "firefly",
+    "instrument": "flute",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 0,
+        "midi": 80,
+        "len": 2,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 77,
+        "len": 1,
+        "vel": 0.48
+      }
+    ],
+    "keys": [
+      5,
+      3
+    ]
+  },
+  "firefly-drill-3-1": {
+    "id": "firefly-drill-3-1",
+    "animal": "firefly",
+    "instrument": "flute",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 77,
+        "len": 1,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 75,
+        "len": 1,
+        "vel": 0.48
+      }
+    ],
+    "keys": [
+      3,
+      2
+    ]
+  },
+  "firefly-drill-3-2": {
+    "id": "firefly-drill-3-2",
+    "animal": "firefly",
+    "instrument": "flute",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 75,
+        "len": 1,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 73,
+        "len": 3,
+        "vel": 0.48
+      }
+    ],
+    "keys": [
+      2,
+      1
+    ]
+  },
+  "firefly-relay": {
+    "id": "firefly-relay",
+    "animal": "firefly",
+    "instrument": "flute",
+    "song": "dusk",
+    "bars": 1,
+    "notes": [
+      {
+        "bar": 0,
+        "step": 4,
+        "midi": 77,
+        "len": 1,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 6,
+        "midi": 75,
+        "len": 1,
+        "vel": 0.48
+      },
+      {
+        "bar": 0,
+        "step": 8,
+        "midi": 73,
+        "len": 3,
+        "vel": 0.48
+      }
+    ],
+    "keys": [
+      3,
+      2,
+      1
+    ]
+  }
+}

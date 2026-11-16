@@ -1,0 +1,1 @@
+{"private":true,"type":"module","dependencies":{"@napi-rs/canvas":"^1.1.1","acorn":"8.19.0","meshoptimizer":"^1.0.1"}}

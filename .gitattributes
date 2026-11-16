@@ -1,0 +1,25 @@
+* text=auto
+*.dart text eol=lf
+*.py text eol=lf
+*.mjs text eol=lf
+*.sh text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf
+
+*.png binary
+*.jpg binary
+*.webp binary
+*.wav binary
+*.m4a binary
+*.ogg binary
+*.ttf binary
+*.woff2 binary
+*.glb binary
+*.bin binary
+*.f32 binary
+*.icns binary
+*.jar binary
+
+# Preserve hashed runtime assets and original dependency notices byte-for-byte.
+go_home_mobile/assets/** -text
+go_home_mobile/docs/licenses/** -text
