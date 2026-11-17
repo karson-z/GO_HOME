@@ -57,9 +57,11 @@ void main(List<String> args) {
       'walk' => 68,
       'run' => 40,
       'wake' => 96,
+      'listen' => 75,
       _ => 72,
     };
     var x = 0.0;
+    final listenFeet = <String, ({double x, double y})>{};
     // Warm up looping gait; leave time-based gestures untouched.
     final warm = ['idle', 'walk', 'run'].contains(id) ? 240 : 30;
     for (var i = -warm; i < count * 2; i++) {
@@ -120,19 +122,62 @@ void main(List<String> args) {
         rig.joints['handB']!.rot = 0;
       }
       if (id == 'listen') {
-        rig.joints['head']!.rot -= .13 * gesture;
-        rig.joints['body']!.rot -= .035 * gesture;
+        // Settle -> lower the lamp -> lean in and listen -> return to idle.
+        // Keep both hands below their shoulders throughout the performance.
+        final recover = 1 - smooth((t - 1.8) / (74 / 30 - 1.8));
+        final lower = smooth((t - .15) / .55) * recover;
+        final attend = smooth((t - .35) / .50) * recover;
+        final stance =
+            smooth(t / .30) * (1 - smooth((t - 2.15) / (74 / 30 - 2.15)));
         rig.update();
-        final h = rig.at('head');
-        final ids = ['upperArmB', 'foreArmB', 'handB'];
+        if (listenFeet.isEmpty) {
+          for (final side in ['F', 'B']) {
+            final foot = rig.at('foot$side');
+            listenFeet[side] = (x: foot.x, y: foot.y);
+          }
+        }
+        final body = rig.joints['body']!;
+        body.x = (body.part['at'][0] as num).toDouble() - .018 * attend;
+        body.y = .414 - .006 * stance + .001 * math.sin(t * math.pi);
+        // Breathing stays in the body's translation; uniform bone lengths keep
+        // the two-bone foot solver planted throughout the quiet hold.
+        body.sy = 1;
+        body.rot -= .045 * attend;
+        final head = rig.joints['head']!;
+        head.x = (head.part['at'][0] as num).toDouble() + .022 * attend;
+        head.y = (head.part['at'][1] as num).toDouble() - .005 * attend;
+        head.rot -= .070 * attend;
+        head.sx *= 1 - .025 * attend;
+        for (final side in ['F', 'B']) {
+          final shoulder = rig.joints['upperArm$side']!;
+          shoulder.y =
+              (shoulder.part['at'][1] as num).toDouble() - .008 * lower;
+          final pin = listenFeet[side]!;
+          final step = (side == 'F' ? .030 : -.025) * stance;
+          rig.solve(
+            'thigh$side',
+            'shin$side',
+            'foot$side',
+            pin.x + step,
+            pin.y - runtime.dy,
+            1,
+            0,
+          );
+        }
+        rig.update();
+        final ids = ['upperArmF', 'foreArmF', 'handF'];
         final old = [for (final name in ids) rig.joints[name]!.rot];
-        // Reach to the far ear from behind the head. Keep the elbow behind the
-        // shoulder, and let hair/cape occlude the far arm in the compositor.
-        rig.solve(ids[0], ids[1], ids[2], h.x - .17, h.y + .05, 1, math.pi);
+        rig.solve(ids[0], ids[1], ids[2], .125, .455, -1, math.pi / 2);
         for (var j = 0; j < ids.length; j++) {
           final joint = rig.joints[ids[j]]!;
-          joint.rot = old[j] + (joint.rot - old[j]) * gesture;
+          joint.rot = old[j] + (joint.rot - old[j]) * lower;
         }
+        rig.levelBox(
+          .018 *
+              math.sin((t - .15) * 7) *
+              math.exp(-math.max(0.0, t - .7) * 3) *
+              lower,
+        );
       }
       if (id == 'lantern') {
         rig.update();

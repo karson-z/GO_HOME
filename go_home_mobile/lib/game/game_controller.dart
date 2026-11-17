@@ -22,6 +22,7 @@ import 'original_ending.dart';
 import 'original_opening.dart';
 import 'original_startup.dart';
 import 'original_resume.dart';
+import 'original_scene_progress.dart';
 
 class _ScheduledCall {
   const _ScheduledCall(this.level, this.id, this.at, this.hum, this.native);
@@ -148,6 +149,7 @@ class GameController extends ChangeNotifier {
   }
 
   final OriginalRoute? route;
+  final sceneProgress = OriginalSceneProgress();
   RouteCamera? camera;
   RouteSegment? get segment => route?.segments[levelIndex];
   double get localX => x - (segment?.ox ?? 0);
@@ -581,6 +583,7 @@ class GameController extends ChangeNotifier {
       'level': index,
       'round': 0,
       'solved': List.generate(index, (i) => i),
+      'sceneDone': List.generate(index, (i) => i),
       'x': route!.segments[index].x0 + .3,
       'y': route!.segments[index].entryY,
       'clock': 0.0,
@@ -865,6 +868,7 @@ class GameController extends ChangeNotifier {
       if (!_changingScene) _menuSave = null;
       journeyRevision++;
       chapterHints.reset();
+      sceneProgress.reset();
       solved.clear();
       _hedgehog = null;
       _bat = null;
@@ -1266,6 +1270,7 @@ class GameController extends ChangeNotifier {
   void _step(double dt) {
     clock += dt;
     animationTime += dt;
+    sceneProgress.update(dt);
     if (route != null) chapterHints.update(dt, x, solved.contains(3));
     while (_scheduledCalls.isNotEmpty && _scheduledCalls.first.at <= clock) {
       final call = _scheduledCalls.removeAt(0);
@@ -1542,6 +1547,19 @@ class GameController extends ChangeNotifier {
           );
     camera?.update(dt, x, y, vx, PlayerPhysics.maxSpeed, grounded);
     if (route != null) {
+      final scenes = route!.segments;
+      sceneProgress.enter(
+        x < scenes.first.x0 - 1e-6 ? -1 : route!.segmentAt(x),
+      );
+      if (grounded) {
+        for (var i = 0; i < scenes.length - 1; i++) {
+          if (solved.contains(i) &&
+              x > scenes[i].goalX &&
+              sceneProgress.finish(i, scenes.length)) {
+            _save();
+          }
+        }
+      }
       final next = route!.segmentAt(x);
       if (next != levelIndex) _continueInto(next);
       if (ending == null && x > route!.segments.last.goalX) {
@@ -1605,6 +1623,7 @@ class GameController extends ChangeNotifier {
     'level': levelIndex,
     'round': round,
     'solved': solved.toList(),
+    if (route != null) 'sceneDone': sceneProgress.done.toList(),
     'x': opening != null ? route?.spawnX ?? lastSafeX : lastSafeX,
     'y': opening != null ? route?.spawnY ?? lastSafeY : lastSafeY,
     'hints': hints,
@@ -1727,6 +1746,14 @@ class GameController extends ChangeNotifier {
         x = segment!.entryX;
         y = segment!.entryY;
       }
+      sceneProgress.reset(
+        completed:
+            (json['sceneDone'] as List?)?.whereType<int>().where(
+              (i) => i >= 0 && i < route!.segments.length,
+            ) ??
+            solved.where((i) => i < levelIndex),
+        at: x < route!.segments.first.x0 - 1e-6 ? -1 : route!.segmentAt(x),
+      );
       final endingData = json['ending'];
       if (endingData is Map) {
         _ending = _createEnding();

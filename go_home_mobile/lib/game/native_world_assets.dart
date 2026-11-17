@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:three_js/three_js.dart' as three;
 
 import 'native_scene_culling.dart';
+import 'native_asset_decode.dart';
+import 'native_load_budget.dart';
 
 /// Loads source-generated scene data. All rendering and updates run in Dart.
 class NativeWorldAssets {
@@ -13,6 +14,10 @@ class NativeWorldAssets {
   late Map<String, dynamic> resources;
   late List<Map<String, dynamic>> manifest;
   final Map<String, dynamic> shared = {};
+  Future<void> _loadTail = Future<void>.value();
+
+  /// Called before a chunk is exposed to scene rendering.
+  Future<void> Function(NativeWorldChunk chunk)? prepare;
   bool _disposed = false;
   String quality = 'high';
   final Map<three.InstancedMesh, int> _qualityMeshes = {};
@@ -42,9 +47,7 @@ class NativeWorldAssets {
   }
 
   Future<void> initialize() async {
-    resources = jsonDecode(
-      await rootBundle.loadString('assets/world/resources.json'),
-    );
+    resources = await decodeNativeJsonAsset('assets/world/resources.json');
     manifest = (jsonDecode(
       await rootBundle.loadString('assets/world/manifest.json'),
     ) as List).cast<Map<String, dynamic>>();
@@ -95,10 +98,7 @@ class NativeWorldAssets {
                   type,
                 );
         } else {
-          final loaded = await three.TextureLoader(flipY: data['flipY'] == true)
-              .fromAsset(file);
-          if (loaded == null) throw StateError('Missing source texture: $file');
-          t = loaded;
+          t = await loadNativeTexture(file, flipY: data['flipY'] == true);
         }
         t.wrapS = data['wrapS'];
         t.wrapT = data['wrapT'];
@@ -152,210 +152,246 @@ class NativeWorldAssets {
 
   Future<dynamic> decodeValue(dynamic value) => _value(value);
 
-  Future<NativeWorldChunk> load(String id) async {
-    final json = jsonDecode(
-      await rootBundle.loadString('assets/world/$id.json'),
-    ) as Map<String, dynamic>;
-    final bytes = await rootBundle.load('assets/world/$id.bin');
+  Future<NativeWorldChunk> load(String id) {
+    final result = _loadTail.then((_) => _load(id));
+    // One builder at a time: simultaneous preloads must not add their CPU
+    // budgets together or allocate several complete scenes in the same frame.
+    _loadTail = result.then<void>((_) {}, onError: (Object _, StackTrace _) {});
+    return result;
+  }
+
+  Future<NativeWorldChunk> _load(String id) async {
+    if (_disposed) throw StateError('World assets have been disposed');
+    final decoded = await decodeNativeWorldAsset(id);
+    final json = decoded.metadata;
+    final bytes = decoded.bytes;
+    final budget = NativeLoadBudget();
     final chunk = NativeWorldChunk(id, json);
-    chunk.onDispose = () {
-      for (final node in chunk.nodes) {
-        if (node is three.InstancedMesh) _qualityMeshes.remove(node);
+    try {
+      chunk.onDispose = () {
+        for (final node in chunk.nodes) {
+          if (node is three.InstancedMesh) _qualityMeshes.remove(node);
+        }
+      };
+      if (json['shared'] != null) {
+        for (final entry in (json['shared'] as Map<String, dynamic>).entries) {
+          shared[entry.key] = {
+            'value': await budget.waiting(_value(entry.value)),
+          };
+        }
       }
-    };
-    if (json['shared'] != null) {
-      for (final entry in (json['shared'] as Map<String, dynamic>).entries) {
-        shared[entry.key] = {'value': await _value(entry.value)};
+      three.BufferAttribute attribute(Map<String, dynamic> data) {
+        final offset = bytes.offsetInBytes + (data['offset'] as int);
+        final length = data['length'] as int, size = data['size'] as int;
+        if (data['integer'] == true) {
+          return three.Uint32BufferAttribute(
+            bytes.buffer.asUint32List(offset, length),
+            size,
+          );
+        }
+        // Views share the worker-owned, mutable binary buffer for the chunk's
+        // lifetime; animated branches can deform it without per-attribute copies.
+        final array = bytes.buffer.asFloat32List(offset, length);
+        if (data['instanced'] == true) {
+          return three.InstancedBufferAttribute(
+            array,
+            size,
+            false,
+            data['meshPerAttribute'] as int,
+          );
+        }
+        return three.Float32BufferAttribute(array, size);
       }
-    }
-    three.BufferAttribute attribute(Map<String, dynamic> data) {
-      final offset = bytes.offsetInBytes + (data['offset'] as int);
-      final length = data['length'] as int, size = data['size'] as int;
-      if (data['integer'] == true) {
-        return three.Uint32BufferAttribute(
-          bytes.buffer.asUint32List(offset, length),
-          size,
-        );
-      }
-      final array = Float32List.fromList(
-        bytes.buffer.asFloat32List(offset, length),
-      );
-      if (data['instanced'] == true) {
-        return three.InstancedBufferAttribute(
-          array,
-          size,
-          false,
-          data['meshPerAttribute'] as int,
-        );
-      }
-      return three.Float32BufferAttribute(array, size);
-    }
 
-    final geometries = <String, three.BufferGeometry>{};
-    three.Vector3 point(List p) => three.Vector3(
-      (p[0] as num).toDouble(),
-      (p[1] as num).toDouble(),
-      (p[2] as num).toDouble(),
-    );
-    three.BoundingSphere sphere(Map data) => three.BoundingSphere(
-      point(data['center']),
-      (data['radius'] as num).toDouble(),
-    );
-    for (final entry in (json['geometries'] as Map<String, dynamic>).entries) {
-      final data = entry.value;
-      final g = data['instanced'] == true
-          ? three.InstancedBufferGeometry()
-          : three.BufferGeometry();
-      for (final a in (data['attributes'] as Map<String, dynamic>).entries) {
-        g.setAttributeFromString(a.key, attribute(a.value));
-      }
-      if (data['index'] != null) g.setIndex(attribute(data['index']));
-      if (data['instanceCount'] != null) {
-        g.instanceCount = data['instanceCount'];
-      }
-      for (final group in data['groups']) {
-        g.addGroup(group['start'], group['count'], group['materialIndex']);
-      }
-      final range = data['drawRange'];
-      if (range['count'] != null) {
-        g.setDrawRange(range['start'], range['count']);
-      }
-      if (data['boundingSphere'] != null) {
-        g.boundingSphere = sphere(data['boundingSphere']);
-      }
-      geometries[entry.key] = g;
-      chunk.geometries.add(g);
-    }
-    final materials = <String, three.Material>{};
-    for (final entry in (json['materials'] as Map<String, dynamic>).entries) {
-      final data = Map<String, dynamic>.from(entry.value);
-      final options = Map<String, dynamic>.from(data)
-        ..remove('vertex')
-        ..remove('fragment')
-        ..remove('uniforms')
-        ..remove('sharedBindings')
-        ..remove('type')
-        ..remove('rotation')
-        ..remove('color')
-        ..remove('map')
-        ..remove('alphaMap');
-      three.Material material;
-      if (data['vertex'] != null) {
-        final uniforms = <String, dynamic>{};
-        for (final u in (data['uniforms'] as Map<String, dynamic>).entries) {
-          final binding = data['sharedBindings']?[u.key];
-          uniforms[u.key] = binding != null
-              ? shared[binding]
-              : {'value': await _value(u.value)};
+      final geometries = <String, three.BufferGeometry>{};
+      three.Vector3 point(List p) => three.Vector3(
+        (p[0] as num).toDouble(),
+        (p[1] as num).toDouble(),
+        (p[2] as num).toDouble(),
+      );
+      three.BoundingSphere sphere(Map data) => three.BoundingSphere(
+        point(data['center']),
+        (data['radius'] as num).toDouble(),
+      );
+      for (final entry
+          in (json['geometries'] as Map<String, dynamic>).entries) {
+        await budget.checkpoint();
+        final data = entry.value;
+        final g = data['instanced'] == true
+            ? three.InstancedBufferGeometry()
+            : three.BufferGeometry();
+        for (final a in (data['attributes'] as Map<String, dynamic>).entries) {
+          g.setAttributeFromString(a.key, attribute(a.value));
         }
-        options['vertexShader'] = resources['shaders'][data['vertex']];
-        options['fragmentShader'] = resources['shaders'][data['fragment']];
-        // Some original uniforms (e.g. cave uX/uY) were plain JS arrays.
-        // GLES expects Vector objects for scalar GLSL vectors. Keep uniform
-        // arrays as lists; their upload path has different requirements.
-        final source =
-            '${options['vertexShader']}\n${options['fragmentShader']}';
-        for (final declaration in RegExp(
-          r'\buniform\s+(?:lowp\s+|mediump\s+|highp\s+)?vec([234])\s+(\w+)\s*;',
-        ).allMatches(source)) {
-          final uniform = uniforms[declaration.group(2)];
-          final value = uniform?['value'];
-          if (value is! List) continue;
-          uniform['value'] = await _value({'vector': value});
+        if (data['index'] != null) g.setIndex(attribute(data['index']));
+        if (data['instanceCount'] != null) {
+          g.instanceCount = data['instanceCount'];
         }
-        options['uniforms'] = uniforms;
-        material = three.ShaderMaterial.fromMap(options);
-      } else {
-        if (data['color'] != null) {
-          options['color'] = await _value(data['color']);
+        for (final group in data['groups']) {
+          g.addGroup(group['start'], group['count'], group['materialIndex']);
         }
-        if (data['map'] != null) options['map'] = await texture(data['map']);
-        if (data['alphaMap'] != null) {
-          options['alphaMap'] = await texture(data['alphaMap']);
+        final range = data['drawRange'];
+        if (range['count'] != null) {
+          g.setDrawRange(range['start'], range['count']);
         }
-        material = data['type'] == 'SpriteMaterial'
-            ? three.SpriteMaterial.fromMap(options)
-            : three.MeshBasicMaterial.fromMap(options);
+        if (data['boundingSphere'] != null) {
+          g.boundingSphere = sphere(data['boundingSphere']);
+        }
+        geometries[entry.key] = g;
+        chunk.geometries.add(g);
       }
-      if (data['rotation'] != null) {
-        material.rotation = (data['rotation'] as num).toDouble();
-      }
-      materials[entry.key] = material;
-      chunk.materials.add(material);
-    }
-    three.Object3D node(Map<String, dynamic> data) {
-      final geometry = geometries[data['geometry']];
-      final mat = data['material'];
-      final material = mat is String
-          ? materials[mat]
-          : mat is List
-          ? materials[mat.first]
-          : null;
-      three.Object3D o;
-      if (data['instances'] != null) {
-        final mesh = three.InstancedMesh(geometry!, material, data['count']);
-        _applyQuality(mesh);
-        mesh.instanceMatrix =
-            attribute(data['instances']) as three.InstancedBufferAttribute;
-        if (data['instanceColor'] != null) {
-          mesh.instanceColor = attribute(
-            data['instanceColor'],
-          ) as three.InstancedBufferAttribute;
+      final materials = <String, three.Material>{};
+      for (final entry in (json['materials'] as Map<String, dynamic>).entries) {
+        await budget.checkpoint();
+        final data = Map<String, dynamic>.from(entry.value);
+        final options = Map<String, dynamic>.from(data)
+          ..remove('vertex')
+          ..remove('fragment')
+          ..remove('uniforms')
+          ..remove('sharedBindings')
+          ..remove('type')
+          ..remove('rotation')
+          ..remove('color')
+          ..remove('map')
+          ..remove('alphaMap');
+        three.Material material;
+        if (data['vertex'] != null) {
+          final uniforms = <String, dynamic>{};
+          for (final u in (data['uniforms'] as Map<String, dynamic>).entries) {
+            final binding = data['sharedBindings']?[u.key];
+            uniforms[u.key] = binding != null
+                ? shared[binding]
+                : {'value': await budget.waiting(_value(u.value))};
+          }
+          options['vertexShader'] = resources['shaders'][data['vertex']];
+          options['fragmentShader'] = resources['shaders'][data['fragment']];
+          // Some original uniforms (e.g. cave uX/uY) were plain JS arrays.
+          // GLES expects Vector objects for scalar GLSL vectors. Keep uniform
+          // arrays as lists; their upload path has different requirements.
+          final source =
+              '${options['vertexShader']}\n${options['fragmentShader']}';
+          for (final declaration in RegExp(
+            r'\buniform\s+(?:lowp\s+|mediump\s+|highp\s+)?vec([234])\s+(\w+)\s*;',
+          ).allMatches(source)) {
+            final uniform = uniforms[declaration.group(2)];
+            final value = uniform?['value'];
+            if (value is! List) continue;
+            uniform['value'] = await _value({'vector': value});
+          }
+          options['uniforms'] = uniforms;
+          material = three.ShaderMaterial.fromMap(options);
+        } else {
+          if (data['color'] != null) {
+            options['color'] = await _value(data['color']);
+          }
+          if (data['map'] != null) {
+            options['map'] = await budget.waiting(texture(data['map']));
+          }
+          if (data['alphaMap'] != null) {
+            options['alphaMap'] = await budget.waiting(
+              texture(data['alphaMap']),
+            );
+          }
+          material = data['type'] == 'SpriteMaterial'
+              ? three.SpriteMaterial.fromMap(options)
+              : three.MeshBasicMaterial.fromMap(options);
         }
-        o = mesh;
-      } else if (data['type'] == 'Sprite') {
-        o = three.Sprite(material);
-      } else if (geometry != null) {
-        o = data['type'] == 'Points'
-            ? three.Points(geometry, material)
-            : data['type'] == 'LineSegments'
-            ? three.LineSegments(geometry, material)
-            : three.Mesh(geometry, material);
-      } else {
-        o = three.Group();
+        if (data['rotation'] != null) {
+          material.rotation = (data['rotation'] as num).toDouble();
+        }
+        materials[entry.key] = material;
+        chunk.materials.add(material);
       }
-      o.name = data['name'];
-      o.visible = data['visible'];
-      o.renderOrder = (data['order'] as num).toInt();
-      o.frustumCulled = data['culled'];
-      o.layers.mask = (data['layers'] as num?)?.toInt() ?? 1;
-      if (o is three.InstancedMesh && (o.count ?? 0) > 0) {
-        o.boundingSphere = data['boundingSphere'] != null
-            ? sphere(data['boundingSphere'])
+      Future<three.Object3D> node(Map<String, dynamic> data) async {
+        await budget.checkpoint();
+        final geometry = geometries[data['geometry']];
+        final mat = data['material'];
+        final material = mat is String
+            ? materials[mat]
+            : mat is List
+            ? materials[mat.first]
             : null;
-        if (o.frustumCulled && o.layers.isEnabled(0)) {
-          if (o.boundingSphere == null) o.computeBoundingSphere();
-          chunk.culling.add(o, o.boundingSphere!);
+        three.Object3D o;
+        if (data['instances'] != null) {
+          // The constructor otherwise allocates a throwaway count*16 matrix.
+          final mesh = three.InstancedMesh(geometry!, material, 0)
+            ..count = data['count'];
+          mesh.instanceMatrix =
+              attribute(data['instances']) as three.InstancedBufferAttribute;
+          if (data['instanceColor'] != null) {
+            mesh.instanceColor = attribute(
+              data['instanceColor'],
+            ) as three.InstancedBufferAttribute;
+          }
+          _applyQuality(mesh);
+          o = mesh;
+        } else if (data['type'] == 'Sprite') {
+          o = three.Sprite(material);
+        } else if (geometry != null) {
+          o = data['type'] == 'Points'
+              ? three.Points(geometry, material)
+              : data['type'] == 'LineSegments'
+              ? three.LineSegments(geometry, material)
+              : three.Mesh(geometry, material);
+        } else {
+          o = three.Group();
         }
+        o.name = data['name'];
+        o.visible = data['visible'];
+        o.renderOrder = (data['order'] as num).toInt();
+        o.frustumCulled = data['culled'];
+        o.layers.mask = (data['layers'] as num?)?.toInt() ?? 1;
+        if (o is three.InstancedMesh && (o.count ?? 0) > 0) {
+          o.boundingSphere = data['boundingSphere'] != null
+              ? sphere(data['boundingSphere'])
+              : null;
+          if (o.frustumCulled && o.layers.isEnabled(0)) {
+            if (o.boundingSphere == null) o.computeBoundingSphere();
+            chunk.culling.add(o, o.boundingSphere!);
+          }
+        }
+        o.matrix.fromNativeArray(
+          (data['matrix'] as List)
+              .cast<num>()
+              .map((n) => n.toDouble())
+              .toList(),
+        );
+        o.matrix.decompose(o.position, o.quaternion, o.scale);
+        o.matrixAutoUpdate = false;
+        o.userData = Map<String, dynamic>.from(data['userData']);
+        if (data['order'] != o.renderOrder) {
+          o.userData['sourceRenderOrder'] = data['order'];
+        }
+        chunk.nodes.add(o);
+        final box = data['visibilityBox'];
+        if (box != null) {
+          final bounds = three.BoundingBox(
+            point(box['min']),
+            point(box['max']),
+          );
+          chunk.visibilityBoxes.add((node: o, box: bounds));
+          if (o is three.Mesh && o is! three.InstancedMesh) {
+            chunk.culling.addBounds(o, bounds);
+          }
+        }
+        for (final child in data['children']) {
+          o.add(await node(child));
+        }
+        return o;
       }
-      o.matrix.fromNativeArray(
-        (data['matrix'] as List).cast<num>().map((n) => n.toDouble()).toList(),
-      );
-      o.matrix.decompose(o.position, o.quaternion, o.scale);
-      o.matrixAutoUpdate = false;
-      o.userData = Map<String, dynamic>.from(data['userData']);
-      if (data['order'] != o.renderOrder) {
-        o.userData['sourceRenderOrder'] = data['order'];
-      }
-      chunk.nodes.add(o);
-      final box = data['visibilityBox'];
-      if (box != null) {
-        chunk.visibilityBoxes.add((
-          node: o,
-          box: three.BoundingBox(point(box['min']), point(box['max'])),
-        ));
-      }
-      for (final child in data['children']) {
-        o.add(node(child));
-      }
-      return o;
-    }
 
-    for (final data in json['nodes']) {
-      chunk.root.add(node(data));
+      for (final data in json['nodes']) {
+        chunk.root.add(await node(data));
+      }
+      chunk.root.updateMatrixWorld(true);
+      if (_disposed) throw StateError('World assets have been disposed');
+      await prepare?.call(chunk);
+      if (_disposed) throw StateError('World assets have been disposed');
+      return chunk;
+    } catch (_) {
+      chunk.dispose();
+      rethrow;
     }
-    chunk.root.updateMatrixWorld(true);
-    return chunk;
   }
 
   double groundAt(NativeWorldChunk global, double x) {
@@ -382,9 +418,10 @@ class NativeWorldAssets {
 class NativeWorldChunk {
   NativeWorldChunk(this.id, this.data);
   final String id;
+  bool _disposed = false;
   void Function()? onDispose;
   final Map<String, dynamic> data;
-  final three.Group root = three.Group();
+  final three.Group root = three.Group()..matrixAutoUpdate = false;
   final List<three.Object3D> nodes = [];
   final List<three.BufferGeometry> geometries = [];
   final List<three.Material> materials = [];
@@ -493,8 +530,14 @@ class NativeWorldChunk {
   }
 
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     onDispose?.call();
     root.removeFromParent();
+    // ANGLE owns instance buffers separately from the shared geometry buffers.
+    for (final node in nodes.whereType<three.InstancedMesh>()) {
+      node.dispatchEvent(three.Event(type: 'dispose'));
+    }
     for (final m in materials) {
       m.dispose();
     }

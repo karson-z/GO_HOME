@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
 import 'package:three_js/three_js.dart' as three;
+
+import 'native_asset_decode.dart';
 
 import 'native_puppet_renderer.dart';
 
@@ -13,8 +13,8 @@ class NativeDogProp {
   final List<three.ShaderMaterial> materials = [];
   static Future<NativeDogProp> load(NativePuppetRenderer rig) async {
     final p = NativeDogProp();
-    final data = jsonDecode(
-      await rootBundle.loadString('assets/characters/fam-dog-prop.json'),
+    final data = await decodeNativeJsonAsset(
+      'assets/characters/fam-dog-prop.json',
     );
     for (final g in data['geometries']) {
       final geometry = three.BufferGeometry();

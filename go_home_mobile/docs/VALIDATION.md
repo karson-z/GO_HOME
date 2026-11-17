@@ -1,4 +1,66 @@
+## Android 实际离屏 draw 预热与提交优化（2026-11-17）
+
+本轮实现和最终对照见外层 `artifacts/scene-draw-warmup-android/findings.md`。`NativeGpuWarmup` 在原 ANGLE 上下文执行真实离屏 draw，使用与正式 HDR 目标相同的附件格式，在节点间让出事件循环；首批区块在 loading 结束前预热，后续区块在加入场景前预热。保留 `SCENE_DRAW_WARMUP=false` 作为仅 compile 的对照。单次 GL 调用不可抢占，2ms 批次预算不能限制一个 draw 的驱动停顿，GL 工作没有移入 Isolate。
+
+同时移除每帧第二次全场景矩阵遍历，保留剔除前的一次更新，固定场景/区块根矩阵，并跳过隐藏角色图集绘制。同一安卓设备 Profile 的最终两轮聚焦对照（每轮 5 段）均通过：场景主体提交最长从 **926.74ms 降至 48.03ms**，测量窗口最长帧间隔从 **961.48ms 降至 256.72ms**。两轮均验证有效 framebuffer 像素；增量/强制矩阵更新、预热前后显示目标的 2,616,000 个 RGBA 通道均为零差异。借用节点在正常与异常 draw 后恢复状态的单元测试、资源加载测试共 8 项通过，静态分析无问题。
+
+这没有解决全部卡顿：实际 draw 组后台单节点预热仍约 **80–140ms**，部分发生在行进测量窗口；静止提交仍约 **35ms**。聚焦总体 FPS 为 17.22 → 16.79，帧间隔 P95 为 70.60 → 76.88ms，该对照不能宣称平均帧率提升。其含逐 GL 调用诊断开销，不替代完整区域基准。画面比较覆盖测量结束处的冻结状态，不代表全路线逐像素等价。
+
+最终完整 Profile 基准 `artifacts/scene-draw-warmup-android/baseline-01/` 完成 **26/26 段、2,769 帧**，未启用逐 GL 调用诊断插桩，高画质 1200×545、120Hz；测试及两项有效像素检查均通过。平均 **17.43 FPS**、帧间隔 **P95 73.82ms / 最长 443.87ms**；逻辑更新均值 **1.18ms**，渲染提交均值 **30.82ms / P95 37.52ms / 最长 123.12ms**。历史基准对应值为 15.64 FPS、P95 89.83ms、最长 640.67ms，提交均值 37.95ms；这是历史/当前各一轮的合并改动比较，不单独证明每项修改的贡献。最长帧在 x=59.44，其上一帧提交仅 29.29ms，大部分长间隔在同步更新/场景提交计时之外，仍需区分后台任务、呈现和调度。不能宣称卡顿消除或达到 60 FPS。源码与 APK 哈希见各运行目录的 `source.json`。旧基准与旧诊断保留如下。
+
+## Android 真机 Profile 区域切换基准（2026-11-17，实际 draw 预热前）
+
+进一步诊断见外层 `artifacts/scene-diagnostics-android/findings.md`。3 轮插桩 Profile 测试均完成：第一轮 11 段，其余各 5 段。x≈614.83 的 660.05ms 尖峰中，同步 draw 占 606.87ms；新增 39 次 draw，下一帧同样数量的 draw 已恢复到约 3.48ms。该帧没有 shader 编译/链接，顶点上传约 0.34ms。另两轮同一边界复现约 477ms / 952ms 尖峰，仍是首次 draw 主导。当时预热只有纹理、顶点和 program 编译，未进行实际 draw，因而尚不能消除这类首用成本；后续实现见上节。驱动内部是管线构建还是其他资源准备仍未获原生栈确认：手机拒绝了 simpleperf 内核及用户态 perf 事件采集。
+
+固定 200 次 draw 的静止画面将目标从 1200×545 降到 600×273 后，呈现均值从 11.60ms 降到 4.84ms，但提交均值仍约 35ms，FPS 仅从 17.4 提高到 20.1；恢复原分辨率得到 17.9 FPS。已确认 ANGLE 呈现路径调用 `glFinish()`，CPU 尾段采样包含该调用链。GPU elapsed 查询包含命令间空档，不能当作 GPU 利用率。上述为诊断数据，不覆盖下面的未插桩基准，也不代表已完成性能修复。
+
+已增加 `integration_test/scene_profile_test.dart` 与 `test_driver/scene_profile_driver.dart`。通过 `flutter drive --profile` 运行，默认高画质，覆盖全部 13 个资源区块边界的前进/返回，共 26 段；保留实际渲染循环、音频、相机和预加载，以脚本位移绕过机关。每段在边界前后各 10 个世界单位、速度 3.4 下测量；定位与初始加载阶段不计入。报告保存实际渲染事件间隔、主线程更新、GL 命令提交耗时、Flutter 帧时序及加载/卸载变化。GL 提交耗时不等于 GPU 执行时间，Flutter raster 耗时也不单独代表 ANGLE 游戏渲染。测试不强制 60fps 通过阈值，数据用于诊断。
+
+运行：`python3 tools/run_scene_profile.py <Android设备ID> --output artifacts/scene-profile-android`。结果为 `scene_profile.json`；`baseline: true` 只表示完整 Profile 测量，是否性能达标须读取实际分布。`--smoke` 仅用于调试测试入口，结果标记为 `debug-smoke`，不作为性能基准。
+
+在 OnePlus PLQ110（SM8750 / Adreno 830，Android 17 / API 37）完成高画质 Profile 测量：26/26 区间，共 2,413 帧，场景目标 1200×545，显示刷新率 120 Hz。原始数据及报告位于外层 `artifacts/scene-profile-android/run-03/`，`scene_profile.json` 与逐段检查点的全部帧数据一致；`source.json` 保存本次源码和 APK 哈希。
+
+| 范围 | 平均 FPS | P95 帧间隔 | 最长帧间隔 |
+| --- | ---: | ---: | ---: |
+| 全部测量区间 | 15.64 | 89.83ms | 640.67ms |
+| 距边界 ≤2 单位 | 15.35 | 93.02ms | 640.67ms |
+| 距边界 ≥5 单位 | 15.65 | 90.67ms | 151.19ms |
+
+Profile 仍有明显卡顿，并且普通行进也持续低帧率。逻辑更新平均 1.82ms、P95 4.27ms；GL 渲染提交平均 37.95ms、P95 59.91ms。最长帧发生在前进经过 x≈614.71（熊区到 W7），帧间隔 640.67ms，其中提交占 616.10ms；当时终点区块的后台加载任务仍未结束。数据支持优先分析渲染提交和加载期间的资源首次使用，不能仅归因于 JSON 解码，也不能仅凭这些计时区分着色器编译、驱动等待、GC 与 GPU 执行。
+
+本次仅对当前实现建立基准，没有与移入 Isolate 前的同设备构建作 A/B 比较，不宣称 Isolate 已消除卡顿。自动位移绕过机关，保留实际场景/音频/相机/预加载；不代表手动全流程通关或独立 GPU 计时。`All tests passed` 仅代表采集流程与数据断言完成，不代表达到 60 FPS。
+
+首轮在自动息屏后出现 GL 上下文错误，中断数据不计入基准；随后处理了系统后台安装确认和日志长度限制，最终这一轮完整结束且无相同上下文错误。运行脚本临时开启插电保活，结束后恢复原设置；逐段日志在测量窗口外输出，以便中断时保留已完成数据。iOS 测试已按用户要求停止，之前模拟器 Debug 加载耗时不替代本次真机结论。
+
 # 验证记录
+
+## 跨区加载与主线程停顿专项（2026-11-17）
+
+原加载函数虽然返回 Future，但区块 JSON 解析、图像解码/翻转/RGBA 转换仍同步执行在 UI Isolate，随后集中构造网格和节点。现在 `native_asset_decode.dart` 使用 `compute` 将这些 CPU 工作移至后台 Isolate，二进制缓冲区也在后台准备为可写数据，通过 TransferableTypedData 传回后，主线程直接创建属性视图，保留猫头鹰树枝等顶点动画。主线程串行构建区块，每约 2ms 工作量让出事件循环；GPU 纹理/顶点上传和着色器预编译仍在原 ANGLE 上下文，按资源分批处理。按行进速度预测约 2 秒后的区块窗口，最多前探/后探 24 个世界单位，提前发起加载而不改变可见性判定。
+
+`test/native_asset_loading_test.dart` 验证完整 JSON 等价、双向翻转 RGBA 像素等价、缓冲区可写且内容一致、串行加载、实例计数、实例缓冲释放，以及准备失败后释放资源并继续下一项。全套 **223 项测试**及静态检查通过。`integration_test/scene_parity_test.dart` 通过全部 14 区块、前进/返回/边界两侧和连续行走，共 36 张原生截图，见外层 `artifacts/scene-streaming-native/`。
+
+`integration_test/scene_loading_test.dart` 在同一 iOS 模拟器 Debug 构建中，先初始化全局资源，再冷加载 W3、洞穴、W6、熊四个区块，使用 1ms 周期计时器记录 UI 事件循环最长空档。修复前为 **40.20 / 15.44 / 23.79 / 74.96ms**；最终实现测量为 **6.64 / 5.24 / 10.46 / 13.57ms**。日志见 `artifacts/scene-loading-before/` 和 `artifacts/scene-loading-transfer/`；中间复测日志也保留在 `artifacts/scene-loading-after/` 和 `artifacts/scene-loading-after-isolated/`。后台工作增加了部分总加载耗时，但显著缩短连续占用主线程的时间。
+
+此计时测试单独测量资源准备和场景构建，不包含实际绘制、GPU 驱动耗时或音频；14 区块原生回归验证 GPU 预热与画面正确性。2ms 是批次让出目标，并非单次 GPU 调用或整帧耗时的上限；模拟器数据不构成真机全程稳定 60fps 的保证。
+
+## 松鼠采果与放置专项（2026-11-17）
+
+原实现只使用旧占位模型的摆腿和果实直线插值，缺少原版 `vy` 的收纳、开包取物、伸手、压入和收手。`tools/bake_squirrel_delivery.mjs` 直接运行原发行包的默认 `vy`，从已校验的三条采果路线导出 60 Hz 骨骼、朝向、身体倾斜、支撑脚约束、三段尾巴、背包与果实挂点。运行时动作按实际 `actTime` 采样，移动按逻辑路径与剩余节点定位；不同收集顺序和刷新率不播放独立的游戏时间线。JSON 在资源工作 Isolate 中解码，绑定时沿用数组视图。果实在包内隐藏，取出后贴合插值后的手掌，1.06 秒后固定在真实槽位；压入期间保留原版非均匀形变。按原场景适配补齐果实中心偏移与门前深度。
+
+同时对齐原 `Gc` 的角色单独绘制规则：原版清空场景深度后绘制角色；松鼠和背包在合并场景中免于树干/门面的深度遮挡，树洞裁切仍由原 shader 控制。原生截图先复现了动画被场景完全挡住的问题，修复后加入“显示/隐藏角色的实际 framebuffer 像素差异”断言，避免仅检查骨骼数据却漏掉不可见角色。
+
+`test/original_squirrel_delivery_test.dart` 覆盖 30/60/120 Hz 倒序收集、三个不同高度的手掌接触/最终槽位、收纳隐藏与中止回退；原树洞 720 帧对照继续通过。全套 225 项测试及静态检查通过。默认固定路线使用源动画采样，非标准外部修改路线和中止仍走实时回退；不宣称任意路线的完整 `vy` 求解器或逐像素一致。
+
+`integration_test/squirrel_delivery_test.dart` 在 iOS 原生 GLES 完整执行三次采果/放置与返回，10 个截图覆盖收纳、取物、伸手、压入、松手及三个槽位，检查角色可见、最终落点与原生错误；通过。截图见外层 `artifacts/squirrel-delivery-native/`，动作特写见 `placement-steps.png`。
+
+## 松鼠树洞模型专项（2026-11-17）
+
+松鼠图集与原版一致；错误来自沿用 `zv` 旧占位模型的睡眠缩放/位置，以及通用动物更新覆盖了松鼠自身的明暗。现在以原版 `vy` 默认 `sit` 表现恢复 1.5 倍尺寸、头部/尾巴联合居中、洞口裁切、场景深度、朝向、静止呼吸、三节尾巴弹簧、睡眠明暗和分层色调，离屏图集分辨率使用原版 `320 × 1.5`。出洞/返洞恢复尺寸、深度与裁切切换。
+
+`node tools/generate_squirrel_pose_traces.mjs` 直接运行原版 `vy`，导出睡眠左右朝向、醒着回洞共 720 帧，包含甩尾、零步长与较大步长；`test/original_squirrel_pose_test.dart` 逐帧核对全部骨骼位置/旋转、角色位置/尺寸、裁切及明暗，误差限 1e-9。全套 217 项单元测试及静态检查通过。此对照覆盖树洞坐姿，不代表采果/攀爬全部动作已逐帧移植。
+
+`integration_test/squirrel_model_test.dart` 在 iOS 原生 GLES 核对睡眠、出洞、枝头待命和返回树洞，检查尺寸、位置、深度、裁切与睡眠/清醒参数。截图见外层 `artifacts/squirrel-model-native/`，修复前画面见 `artifacts/squirrel-model-before/`。
 
 2026-11-16；Flutter 3.47.1 / Dart 3.13.1，three_js 0.3.0 / flutter_angle 0.4.2。最终文件校验值及大小以外层 `artifacts/BUILD_MANIFEST.json` 为准。
 
@@ -77,6 +139,20 @@
 
 这些验证覆盖上述过渡，未扩展为全游戏逐像素或逐音频采样一致认证。
 
+## 场景进程标识专项
+
+右下角恢复原版 `tj / ZA` 的 140×18 手绘路线、九个场景节点和终点树，距离右边/下边各 24 个逻辑像素；进入场景与实际通过场景分别触发落光、亮点、回弹和 2.8 秒淡出。场景通过记录独立于答对旋律的状态保存，恢复存档不重播旧提示。
+
+`node tools/generate_scene_progress_traces.mjs` 直接运行原版实现，导出进入/完成共 360 帧；单元测试核对透明度、切换时间、节点位置和手绘 SVG 路径。全套 213 项测试及静态检查通过。`integration_test/scene_progress_test.dart` 在 iOS 模拟器核对右下位置、进入/完成/隐藏、暂停冻结、设置保存不重播及触控穿透；系统截图见外层 `artifacts/scene-progress-native/`。
+
+## 演奏圆环清理专项（2026-11-17）
+
+示范演奏中的错误只增加节奏判定器的失败次数，不增加角色的可见错误次数。原实现错误地比较这两个计数，反复回放旧失败记录，导致答对后持续重建圆环。现在与原版 `Ip.checkFail` 一样使用角色的可见错误次数，正常错误反馈仍会碎裂淡出；重新开始也按旅程版本重置提示状态。
+
+`test/native_hint_lifecycle_test.dart` 先复现示范中按错、正常回答时再按错、随后答对，检查碎裂/飞散结束后数据与可见精灵均清空，并覆盖暂停、切换/返回场景和重新开始。修复前能复现残留圆环及重开缓存未清理，修复后全套 214 项测试及静态检查通过。
+
+`integration_test/hint_cleanup_test.dart` 在 iOS 模拟器原生 GLES 重放示范中按错后答对，验证圆环淡出并在后续帧保持清除；实际截图见外层 `artifacts/hint-cleanup-native/hint-cleanup-fading.png` 与 `hint-cleanup-cleared.png`。复现命令：`python3 tools/run_native_regression.py <模拟器ID> integration_test/hint_cleanup_test.dart artifacts/hint-cleanup-native`。
+
 ## 图标核对
 
 `original-app-icon-verification.json` 检查原 ZIP 中声明的 ICNS 与工程保留文件逐字节一致，并检查 iOS/Android 共 20 个输出的全部 RGBA 像素等于原最高分辨率图像的相同尺寸缩放结果。`original-ui-icons-verification.json` 将 27 个耳机/点击/扬声器/树形/小点/入口/滑块 SVG 与原发行函数输出比较，仅忽略不影响画面的 data-n 实例计数；全部一致。Dart 游戏代码已无 Material 图标引用。设置专项在更新图标后重跑；图标输出保持不变；后续菜单过渡改动与回归见下节。
@@ -91,6 +167,6 @@
 
 ## 未覆盖
 
-Android 真机 GPU 与安装、iOS 真机签名安装、低端机性能、长时间温度/续航、真实多指和弦延迟、系统中断/存储故障、商店提审。原生音频 DSP、部分表现动画和所有提示的全流程逐像素对照仍有验证边界，详见 PORTING.md。
+Android 独立 GPU 计时及硬件计数器、iOS 真机签名安装、低端机性能、长时间温度/续航、真实多指和弦延迟、系统中断/存储故障、商店提审。原生音频 DSP、部分表现动画和所有提示的全流程逐像素对照仍有验证边界，详见 PORTING.md。
 
 three_js_sensors 当前通过 CocoaPods 回退构建；Flutter 会提示它尚未采用 Swift Package Manager。现有 Android Gradle/Kotlin 版本可构建，但 Flutter 有后续淘汰提示。

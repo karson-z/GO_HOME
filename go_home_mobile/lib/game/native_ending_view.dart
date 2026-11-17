@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/services.dart';
 import 'package:three_js/three_js.dart' as three;
+
+import 'native_asset_decode.dart';
 
 import 'native_puppet_renderer.dart';
 import 'native_family_renderer.dart';
@@ -53,9 +53,7 @@ class NativeEndingView {
   ) async {
     final view = NativeEndingView(OriginalEnding(data));
     view.sourceConfig = Map<String, dynamic>.from(
-      jsonDecode(
-        await rootBundle.loadString('assets/data/original_config.json'),
-      ),
+      await decodeNativeJsonAsset('assets/data/original_config.json'),
     );
     for (final name in ['bear', ...OriginalEnding.beasts, 'fam-dog']) {
       final art = switch (name) {

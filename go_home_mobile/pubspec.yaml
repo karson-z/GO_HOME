@@ -13,7 +13,11 @@ dependencies:
   flutter_soloud: ^5.2.3
   shared_preferences: ^2.5.5
   flutter_svg: ^2.4.0
+  image: ^4.12.0
 dev_dependencies:
+  flutter_angle: ^0.4.2
+  ffi: ^2.1.4
+  vm_service: ^15.4.0
   flutter_test:
     sdk: flutter
   integration_test:

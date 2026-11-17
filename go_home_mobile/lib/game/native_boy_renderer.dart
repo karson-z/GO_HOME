@@ -1,8 +1,9 @@
-import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
 import 'package:three_js/three_js.dart' as three;
+
+import 'native_asset_decode.dart';
 
 import 'character_rig.dart';
 import 'boy_kinematics.dart';
@@ -46,15 +47,13 @@ class NativeBoyRenderer {
   }) async {
     final rig = await CharacterRig.load(name);
     final result = NativeBoyRenderer._(rig);
-    final shaders = jsonDecode(
-      await rootBundle.loadString('assets/data/original_shaders.json'),
+    final shaders = await decodeNativeJsonAsset(
+      'assets/data/original_shaders.json',
     );
-    final config = jsonDecode(
-      await rootBundle.loadString('assets/data/original_config.json'),
+    final config = await decodeNativeJsonAsset(
+      'assets/data/original_config.json',
     );
-    final data = jsonDecode(
-      await rootBundle.loadString('assets/characters/$name.json'),
-    );
+    final data = await decodeNativeJsonAsset('assets/characters/$name.json');
     final parts = {for (final p in data['parts']) p['id']: p};
     for (final p in data['parts']) {
       result.partData[p['id']] = Map<String, dynamic>.from(p);
@@ -65,9 +64,7 @@ class NativeBoyRenderer {
         'sleepPose': config['core_Uj'],
       });
       result.motionData = Map<String, dynamic>.from(
-        jsonDecode(
-          await rootBundle.loadString('assets/data/original_boy_motion.json'),
-        ),
+        await decodeNativeJsonAsset('assets/data/original_boy_motion.json'),
       );
       result.skeleton = BoyKinematics(Map<String, dynamic>.from(data));
       result.resetMotion(0);

@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/services.dart';
 import 'package:three_js/three_js.dart' as three;
+
+import 'native_asset_decode.dart';
 
 /// Ports the original atlas, pivots, hierarchy, rest pose and layer order.
 class CharacterRig {
@@ -16,14 +16,13 @@ class CharacterRig {
   final List<three.BufferGeometry> geometries = [];
   final List<three.Material> materials = [];
   static Future<CharacterRig> load(String name) async {
-    final data = jsonDecode(
-      await rootBundle.loadString('assets/characters/$name.json'),
-    ) as Map<String, dynamic>;
+    final data = await decodeNativeJsonAsset('assets/characters/$name.json');
     // Native GLES has no WebGL UNPACK_FLIP_Y. Flip decoded image pixels so the
     // source atlas UVs retain the browser's bottom-left coordinate convention.
-    final texture = await three.TextureLoader(flipY: true)
-        .fromAsset('assets/characters/$name.png');
-    if (texture == null) throw StateError('Missing texture: $name');
+    final texture = await loadNativeTexture(
+      'assets/characters/$name.png',
+      flipY: true,
+    );
     texture.colorSpace = three.NoColorSpace;
     final rig = CharacterRig._(name, texture);
     final parts = (data['parts'] as List).cast<Map<String, dynamic>>();

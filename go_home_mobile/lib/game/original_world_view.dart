@@ -32,9 +32,12 @@ import 'native_ending_flight_view.dart';
 import 'original_ending_flight.dart';
 import 'original_ending_look.dart';
 import 'native_game_hints.dart';
+import 'native_gpu_warmup.dart';
 
 class OriginalWorldView extends StatefulWidget {
   const OriginalWorldView({super.key, required this.game});
+  @visibleForTesting
+  static void Function(three.ThreeJS)? configureRendererForTest;
   final GameController game;
   @override
   State<OriginalWorldView> createState() => _OriginalWorldViewState();
@@ -49,6 +52,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
   Future<void>? transition;
   NativeWorldChunk? global;
   NativePostprocess? post;
+  NativeGpuWarmup? gpuWarmup;
   NativeBoyRenderer? boy;
   NativeOpeningView? openingView;
   NativeHedgehogView? hedgeView;
@@ -91,7 +95,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
   }
 
   Future<void> setup() async {
-    renderer.scene = three.Scene();
+    renderer.scene = three.Scene()..matrixAutoUpdate = false;
     renderer.camera = three.PerspectiveCamera(
       28,
       renderer.width / renderer.height,
@@ -99,6 +103,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       2000,
     );
     try {
+      OriginalWorldView.configureRendererForTest?.call(renderer);
       installSourceRenderOrder(renderer.renderer!);
       await assets.initialize();
       routePalette = OriginalRoutePalette(await OriginalPalette.load());
@@ -134,6 +139,19 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       post = NativePostprocess(renderer, assets)
         ..sceneResolution = game.renderResolution;
       await post!.initialize();
+      gpuWarmup = NativeGpuWarmup(
+        renderer.renderer!,
+        renderer.scene,
+        () => renderer.camera,
+        () => post?.sceneTarget,
+      );
+      assets.prepare = gpuWarmup!.prepare;
+      // These chunks were constructed before the HDR target existed. Prepare
+      // them under the loading screen too, rather than on the first play frame.
+      for (final chunk in [global!, ...chunks.values]) {
+        await gpuWarmup!.prepare(chunk);
+        if (disposed) return;
+      }
       post!.beforeSceneRender = (r) {
         boy?.renderParts(r);
         turtleView?.renderParts(r);
@@ -145,12 +163,16 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         }
         final frustum = viewFrustum();
         updateSceneVisibility(frustum);
-        renderer.scene.updateMatrixWorld(true);
+        // Culling needs current matrices. Update once here; render() must not
+        // traverse the entire world a second time. Static chunk roots retain
+        // their matrices, while animated objects mark their own changes.
+        renderer.scene.updateMatrixWorld();
         global?.culling.update(frustum);
         for (final chunk in chunks.values) {
-          chunk.culling.update(frustum);
+          if (chunk.root.visible) chunk.culling.update(frustum);
         }
       };
+      renderer.scene.matrixWorldAutoUpdate = false;
       renderer.postProcessor = post!.render;
       if (disposed) return;
       game.sceneReady();
@@ -173,7 +195,15 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       if (id == 'dusk-hedgehog') hedgeView = NativeHedgehogView(chunk);
       if (id == 'cave-bat') batView = NativeBatView(chunk);
       if (id == 'night-owl') owlView = NativeOwlView(chunk);
-      if (id == 'dusk-squirrel') squirrelView = NativeSquirrelView(chunk);
+      if (id == 'dusk-squirrel') {
+        final view = await NativeSquirrelView.load(chunk);
+        if (disposed) {
+          view.dispose();
+          return;
+        }
+        squirrelView?.dispose();
+        squirrelView = view;
+      }
       if (id == 'dawn-bear') {
         final view = await NativeBearView.load(
           chunk,
@@ -238,6 +268,16 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
   Future<void> stream({bool blocking = false}) async {
     final jobs = <Future<void>>[];
     final current = sceneIndex;
+    // Start the next window while approaching a seam, not on the seam frame.
+    // Two seconds of travel gives decode/upload time without retaining the
+    // whole route. Visibility still uses the actual camera/current scene.
+    final leadX = game.x + (game.vx * 2).clamp(-24.0, 24.0);
+    final predictedIndex = assets.manifest.indexWhere(
+      (meta) => leadX < (meta['x1'] as num),
+    );
+    final predicted = predictedIndex < 0
+        ? assets.manifest.length - 1
+        : predictedIndex;
     final frustum = viewFrustum();
     for (var index = 0; index < assets.manifest.length; index++) {
       final meta = assets.manifest[index];
@@ -246,6 +286,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       final chunk = chunks[id];
       final close =
           (index >= current - 1 && index <= current + 2) ||
+          (index >= predicted - 1 && index <= predicted + 2) ||
           (chunk != null &&
               (index == 0 ||
                   distance <= 2 ||
@@ -259,7 +300,10 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         if (id == 'dusk-hedgehog') hedgeView = null;
         if (id == 'cave-bat') batView = null;
         if (id == 'night-owl') owlView = null;
-        if (id == 'dusk-squirrel') squirrelView = null;
+        if (id == 'dusk-squirrel') {
+          squirrelView?.dispose();
+          squirrelView = null;
+        }
         if (id == 'dawn-bear') {
           bearView?.dispose();
           bearView = null;
@@ -296,7 +340,11 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       jobs.add(() async {
         try {
           final kind = game.route!.segments[i].metadata(i).kind.name;
-          final rig = await NativePuppetRenderer.load(kind, assets.shared);
+          final rig = await NativePuppetRenderer.load(
+            kind,
+            assets.shared,
+            ppm: kind == 'squirrel' ? 320 * 1.5 : 280,
+          );
           if (disposed) {
             rig.dispose();
             return;
@@ -642,6 +690,8 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       squirrelSegment.ox,
       squirrelSegment.oy,
       game.animationTime,
+      elapsed,
+      game.x,
     );
     if (routePalette != null) {
       var p = routePalette!.frame(
@@ -957,7 +1007,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
     );
     for (final entry in animals.entries) {
       final animal = entry.value;
-      if (entry.key != 6 && entry.key != 7) {
+      if (entry.key != 2 && entry.key != 6 && entry.key != 7) {
         animal.setWake(game.solved.contains(entry.key) ? 1 : 0);
       }
       if (entry.key == 1) {
@@ -1036,11 +1086,13 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
   @override
   void dispose() {
     disposed = true;
+    gpuWarmup?.dispose();
     hintsView?.dispose();
     openingView?.dispose();
     boy?.dispose();
     turtleView?.dispose();
     fireflyView?.dispose();
+    squirrelView?.dispose();
     endingView?.dispose();
     bearView?.dispose();
     for (final rig in animals.values) {

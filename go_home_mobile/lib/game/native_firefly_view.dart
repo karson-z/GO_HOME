@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:three_js/three_js.dart' as three;
 
 import 'native_puppet_renderer.dart';
+import 'native_asset_decode.dart';
 import 'original_firefly.dart';
 import 'original_firefly_motion.dart';
 
@@ -18,12 +19,12 @@ class NativeFireflyView {
   double motionTime = 0;
   static Future<NativeFireflyView> load(Map<String, dynamic> shared) async {
     final view = NativeFireflyView();
-    view.lampTexture = (await three.TextureLoader().fromAsset(
+    view.lampTexture = await loadNativeTexture(
       'assets/characters/firefly-lamp.png',
-    ))!;
-    view.haloTexture = (await three.TextureLoader().fromAsset(
+    );
+    view.haloTexture = await loadNativeTexture(
       'assets/characters/firefly-halo.png',
-    ))!;
+    );
     for (var i = 0; i < 7; i++) {
       view.rigs.add(await NativePuppetRenderer.load('firefly', shared));
       three.Sprite sprite(

@@ -1,0 +1,78 @@
+{
+  "units": "metres",
+  "up": "+Y",
+  "front": "+Z",
+  "pivot": "bottom centre",
+  "source": "art/garden/source/parts.png",
+  "referenceOnly": "art/garden/source/composition.png",
+  "technique": {
+    "cottage": "Rounded masonry shell, eight roof petal volumes and flower bud; source-painted relief facade. Unseen sides inferred.",
+    "flower_arch": "Open curved timber tube and foot geometry with shallow extruded watercolor foliage.",
+    "fence": "3D posts, caps and rails with watercolor front overlay.",
+    "plants": "Alpha-trimmed low-relief cutouts; intentionally 2.5D.",
+    "ground": "Procedurally painted horizontal mesh, not reference-image projection."
+  },
+  "assets": [
+    {
+      "file": "garden_cottage.glb",
+      "width": 10.8,
+      "bytes": 819684
+    },
+    {
+      "file": "garden_flower_arch.glb",
+      "width": 7.7,
+      "bytes": 599100
+    },
+    {
+      "file": "garden_fence.glb",
+      "width": 6.0,
+      "bytes": 170140
+    },
+    {
+      "file": "garden_daffodil.glb",
+      "width": 3.2,
+      "bytes": 69404
+    },
+    {
+      "file": "garden_flowers_left.glb",
+      "width": 9.8,
+      "bytes": 258012
+    },
+    {
+      "file": "garden_flowers_right.glb",
+      "width": 6.8,
+      "bytes": 172520
+    },
+    {
+      "file": "garden_bush.glb",
+      "width": 5.0,
+      "bytes": 89940
+    },
+    {
+      "file": "garden_small_flowers.glb",
+      "width": 4.5,
+      "bytes": 56244
+    },
+    {
+      "file": "garden_meadow.glb",
+      "width": 12.5,
+      "bytes": 171116
+    },
+    {
+      "file": "garden_grass_patch.glb",
+      "width": 12.0,
+      "bytes": 101716
+    },
+    {
+      "file": "garden_hills.glb",
+      "width": 48.0,
+      "bytes": 646408
+    },
+    {
+      "file": "garden_cloud.glb",
+      "width": 8.0,
+      "bytes": 42064
+    }
+  ],
+  "placements": 28
+}

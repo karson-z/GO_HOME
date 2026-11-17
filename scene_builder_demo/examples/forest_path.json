@@ -1,0 +1,230 @@
+{
+  "schema": "forest-workshop",
+  "version": 1,
+  "road": true,
+  "fog": 0.45,
+  "warmth": 0.65,
+  "lesson": 0,
+  "items": [
+    {
+      "id": "example-0",
+      "kind": "mountain",
+      "layer": "far",
+      "x": -17.0,
+      "y": 0.0,
+      "z": -15.0,
+      "scale": 1.1,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-1",
+      "kind": "mountain",
+      "layer": "far",
+      "x": -4.0,
+      "y": 0.0,
+      "z": -15.0,
+      "scale": 1.5,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-2",
+      "kind": "mountain",
+      "layer": "far",
+      "x": 10.0,
+      "y": 0.0,
+      "z": -15.0,
+      "scale": 1.1,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-3",
+      "kind": "mountain",
+      "layer": "far",
+      "x": 20.0,
+      "y": 0.0,
+      "z": -15.0,
+      "scale": 1.1,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-4",
+      "kind": "fir",
+      "layer": "middle",
+      "x": -17.0,
+      "y": 0.0,
+      "z": -4.5,
+      "scale": 0.8,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-5",
+      "kind": "willow",
+      "layer": "middle",
+      "x": -13.0,
+      "y": 0.0,
+      "z": -6.5,
+      "scale": 0.99,
+      "rotation": 19.0
+    },
+    {
+      "id": "example-6",
+      "kind": "fir",
+      "layer": "middle",
+      "x": -8.0,
+      "y": 0.0,
+      "z": -4.5,
+      "scale": 1.1800000000000002,
+      "rotation": 38.0
+    },
+    {
+      "id": "example-7",
+      "kind": "willow",
+      "layer": "middle",
+      "x": -2.0,
+      "y": 0.0,
+      "z": -6.5,
+      "scale": 0.8,
+      "rotation": 57.0
+    },
+    {
+      "id": "example-8",
+      "kind": "fir",
+      "layer": "middle",
+      "x": 4.0,
+      "y": 0.0,
+      "z": -4.5,
+      "scale": 0.99,
+      "rotation": 76.0
+    },
+    {
+      "id": "example-9",
+      "kind": "willow",
+      "layer": "middle",
+      "x": 11.0,
+      "y": 0.0,
+      "z": -6.5,
+      "scale": 1.1800000000000002,
+      "rotation": 95.0
+    },
+    {
+      "id": "example-10",
+      "kind": "fir",
+      "layer": "middle",
+      "x": 16.0,
+      "y": 0.0,
+      "z": -4.5,
+      "scale": 0.8,
+      "rotation": 114.0
+    },
+    {
+      "id": "example-11",
+      "kind": "willow",
+      "layer": "middle",
+      "x": 20.0,
+      "y": 0.0,
+      "z": -6.5,
+      "scale": 0.99,
+      "rotation": 133.0
+    },
+    {
+      "id": "example-12",
+      "kind": "grass",
+      "layer": "front",
+      "x": -15.0,
+      "y": 0.0,
+      "z": 4.2,
+      "scale": 1.2,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-13",
+      "kind": "grass",
+      "layer": "front",
+      "x": -10.0,
+      "y": 0.0,
+      "z": 4.2,
+      "scale": 1.2,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-14",
+      "kind": "grass",
+      "layer": "front",
+      "x": 1.0,
+      "y": 0.0,
+      "z": 4.2,
+      "scale": 1.2,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-15",
+      "kind": "grass",
+      "layer": "front",
+      "x": 6.0,
+      "y": 0.0,
+      "z": 4.2,
+      "scale": 1.2,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-16",
+      "kind": "grass",
+      "layer": "front",
+      "x": 14.0,
+      "y": 0.0,
+      "z": 4.2,
+      "scale": 1.2,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-17",
+      "kind": "grass",
+      "layer": "front",
+      "x": 19.0,
+      "y": 0.0,
+      "z": 4.2,
+      "scale": 1.2,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-18",
+      "kind": "rock",
+      "layer": "middle",
+      "x": -11.0,
+      "y": 0.0,
+      "z": -2.8,
+      "scale": 1.0,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-19",
+      "kind": "rock",
+      "layer": "middle",
+      "x": 6.0,
+      "y": 0.0,
+      "z": -3.0,
+      "scale": 1.4,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-20",
+      "kind": "log",
+      "layer": "path",
+      "x": -3.0,
+      "y": 0.0,
+      "z": 0.0,
+      "scale": 0.8,
+      "rotation": 0.0
+    },
+    {
+      "id": "example-21",
+      "kind": "gate",
+      "layer": "path",
+      "x": 9.0,
+      "y": 0.0,
+      "z": 0.0,
+      "scale": 1.0,
+      "rotation": 0.0
+    }
+  ]
+}

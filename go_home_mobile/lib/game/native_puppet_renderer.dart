@@ -1,9 +1,8 @@
-import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/services.dart';
 import 'package:three_js/three_js.dart' as three;
 
+import 'native_asset_decode.dart';
 import 'original_puppet_rig.dart';
 
 class PuppetPart {
@@ -18,6 +17,7 @@ class PuppetPart {
 /// Bg/Gg/Ng/Pg/Fg: the source animal atlas compositor, with all frame geometry
 /// and parent/child pivot overrides retained. It uses no browser runtime.
 class NativePuppetRenderer {
+  static Future<Map<String, dynamic>>? _shaders;
   final root = three.Group(),
       flip = three.Group(),
       stage = three.Scene(),
@@ -40,15 +40,13 @@ class NativePuppetRenderer {
     final p = NativePuppetRenderer();
     p.data =
         dataOverride ??
-        jsonDecode(await rootBundle.loadString('assets/characters/$name.json'));
-    final shaders = jsonDecode(
-      await rootBundle.loadString('assets/data/original_shaders.json'),
-    );
+        await decodeNativeJsonAsset('assets/characters/$name.json');
+    final shaders = await (_shaders ??= decodeNativeJsonAsset(
+      'assets/data/original_shaders.json',
+    ));
     final tex =
         textureOverride ??
-        await three.TextureLoader(flipY: true)
-            .fromAsset('assets/characters/$name.png');
-    if (tex == null) throw StateError('Missing puppet atlas: $name');
+        await loadNativeTexture('assets/characters/$name.png', flipY: true);
     p.texture = tex
       ..colorSpace = three.NoColorSpace
       ..minFilter = textureOverride == null
@@ -146,6 +144,8 @@ class NativePuppetRenderer {
         'value': three.Color.fromHex32(
           name == 'hedgehog'
               ? 0x3f7fc4
+              : name == 'squirrel'
+              ? 0x7d4fc0
               : name.startsWith('bear')
               ? 0xa33a31
               : 0x8a7a70,
@@ -335,6 +335,9 @@ class NativePuppetRenderer {
   }
 
   void renderParts(three.Renderer renderer) {
+    for (three.Object3D? node = root; node != null; node = node.parent) {
+      if (!node.visible) return;
+    }
     final previous = renderer.getRenderTarget(),
         alpha = renderer.getClearAlpha();
     final color = renderer.getClearColor(three.Color()),

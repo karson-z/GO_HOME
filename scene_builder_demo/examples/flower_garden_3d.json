@@ -1,0 +1,281 @@
+{
+  "schema": "forest-workshop",
+  "version": 1,
+  "theme": "garden",
+  "road": true,
+  "fog": 0,
+  "warmth": 0.65,
+  "lesson": 0,
+  "items": [
+    {
+      "id": "garden3d-00",
+      "kind": "gardenHills",
+      "layer": "far",
+      "x": 0,
+      "y": 0,
+      "z": -19,
+      "scale": 1.0,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-01",
+      "kind": "gardenCloud",
+      "layer": "far",
+      "x": -17,
+      "y": 6,
+      "z": -24,
+      "scale": 1.1,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-02",
+      "kind": "gardenCloud",
+      "layer": "far",
+      "x": 13,
+      "y": 5.5,
+      "z": -24,
+      "scale": 1.0,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-03",
+      "kind": "cottage",
+      "layer": "middle",
+      "x": -10.5,
+      "y": 0,
+      "z": -5.0,
+      "scale": 1.0,
+      "rotation": -4
+    },
+    {
+      "id": "garden3d-04",
+      "kind": "flowerArch",
+      "layer": "middle",
+      "x": 8.2,
+      "y": 0,
+      "z": -5.0,
+      "scale": 1.08,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-05",
+      "kind": "gardenFence",
+      "layer": "middle",
+      "x": 0,
+      "y": 0,
+      "z": -6.4,
+      "scale": 1.0,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-06",
+      "kind": "gardenFence",
+      "layer": "middle",
+      "x": 15,
+      "y": 0,
+      "z": -6.4,
+      "scale": 1.0,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-07",
+      "kind": "gardenGrass",
+      "layer": "middle",
+      "x": -13,
+      "y": -0.12,
+      "z": -7,
+      "scale": 1.0,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-08",
+      "kind": "gardenGrass",
+      "layer": "middle",
+      "x": 0,
+      "y": -0.12,
+      "z": -7,
+      "scale": 1.0,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-09",
+      "kind": "gardenGrass",
+      "layer": "middle",
+      "x": 13,
+      "y": -0.12,
+      "z": -7,
+      "scale": 1.0,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-10",
+      "kind": "flowerBush",
+      "layer": "middle",
+      "x": -17,
+      "y": 0,
+      "z": -5,
+      "scale": 1.1,
+      "rotation": 15
+    },
+    {
+      "id": "garden3d-11",
+      "kind": "flowerBush",
+      "layer": "middle",
+      "x": 1.6,
+      "y": 0,
+      "z": -5.6,
+      "scale": 0.9,
+      "rotation": -20
+    },
+    {
+      "id": "garden3d-12",
+      "kind": "flowerBush",
+      "layer": "middle",
+      "x": 18,
+      "y": 0,
+      "z": -5.8,
+      "scale": 1.0,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-13",
+      "kind": "daffodil",
+      "layer": "middle",
+      "x": -17,
+      "y": 0,
+      "z": -2.8,
+      "scale": 1.05,
+      "rotation": 12
+    },
+    {
+      "id": "garden3d-14",
+      "kind": "daffodil",
+      "layer": "middle",
+      "x": -3.6,
+      "y": 0,
+      "z": -3.5,
+      "scale": 0.8,
+      "rotation": -9
+    },
+    {
+      "id": "garden3d-15",
+      "kind": "daffodil",
+      "layer": "middle",
+      "x": 18,
+      "y": 0,
+      "z": -3,
+      "scale": 1.0,
+      "rotation": -12
+    },
+    {
+      "id": "garden3d-16",
+      "kind": "smallFlowers",
+      "layer": "middle",
+      "x": -14,
+      "y": 0,
+      "z": -1.5,
+      "scale": 1.0,
+      "rotation": 20
+    },
+    {
+      "id": "garden3d-17",
+      "kind": "smallFlowers",
+      "layer": "middle",
+      "x": -5,
+      "y": 0,
+      "z": -1.4,
+      "scale": 0.7,
+      "rotation": -20
+    },
+    {
+      "id": "garden3d-18",
+      "kind": "smallFlowers",
+      "layer": "middle",
+      "x": 2.4,
+      "y": 0,
+      "z": -1.7,
+      "scale": 0.9,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-19",
+      "kind": "smallFlowers",
+      "layer": "middle",
+      "x": 13.7,
+      "y": 0,
+      "z": -1.5,
+      "scale": 0.95,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-20",
+      "kind": "gardenMeadow",
+      "layer": "front",
+      "x": -14,
+      "y": -0.1,
+      "z": 12,
+      "scale": 1.2,
+      "rotation": 4
+    },
+    {
+      "id": "garden3d-21",
+      "kind": "gardenMeadow",
+      "layer": "front",
+      "x": 0,
+      "y": -0.1,
+      "z": 15,
+      "scale": 1.3,
+      "rotation": 0
+    },
+    {
+      "id": "garden3d-22",
+      "kind": "gardenMeadow",
+      "layer": "front",
+      "x": 14,
+      "y": -0.1,
+      "z": 12,
+      "scale": 1.2,
+      "rotation": -5
+    },
+    {
+      "id": "garden3d-23",
+      "kind": "flowersLeft",
+      "layer": "front",
+      "x": -17.5,
+      "y": 0,
+      "z": 19,
+      "scale": 1.1,
+      "rotation": -8
+    },
+    {
+      "id": "garden3d-24",
+      "kind": "flowersRight",
+      "layer": "front",
+      "x": 17.5,
+      "y": 0,
+      "z": 19,
+      "scale": 1.1,
+      "rotation": 8
+    },
+    {
+      "id": "garden3d-25",
+      "kind": "smallFlowers",
+      "layer": "front",
+      "x": -9.5,
+      "y": 0,
+      "z": 21,
+      "scale": 1.2,
+      "rotation": 12
+    },
+    {
+      "id": "garden3d-26",
+      "kind": "flowerBush",
+      "layer": "front",
+      "x": 10,
+      "y": 0,
+      "z": 21,
+      "scale": 1.0,
+      "rotation": -8
+    }
+  ]
+}

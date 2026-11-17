@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/services.dart';
 import 'package:three_js/three_js.dart' as three;
+
+import 'native_asset_decode.dart';
 
 import 'native_puppet_renderer.dart';
 import 'original_artist_firefly.dart';
@@ -33,9 +33,9 @@ class NativeArtistFirefly {
   static const width = 448, height = 336;
 
   static Future<NativeArtistFirefly> load(Map<String, dynamic> shared) async {
-    final data = jsonDecode(
-      await rootBundle.loadString('assets/characters/artist-firefly.json'),
-    ) as Map<String, dynamic>;
+    final data = await decodeNativeJsonAsset(
+      'assets/characters/artist-firefly.json',
+    );
     final texture =
         three.DataTexture(Uint8List(width * height * 4), width, height)
           ..colorSpace = three.NoColorSpace
@@ -56,9 +56,10 @@ class NativeArtistFirefly {
     rig.number('uEdgeK', 1);
     rig.quad.renderOrder = 27;
     Future<three.Sprite> sprite(String name, double order) async {
-      final map = await three.TextureLoader(flipY: true)
-          .fromAsset('assets/characters/artist-firefly-$name.png');
-      if (map == null) throw StateError('Missing artist firefly $name');
+      final map = await loadNativeTexture(
+        'assets/characters/artist-firefly-$name.png',
+        flipY: true,
+      );
       final s = three.Sprite(
         three.SpriteMaterial.fromMap({
           'map': map,

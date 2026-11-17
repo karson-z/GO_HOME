@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'player_physics.dart';
+import 'original_pusher.dart';
 
 typedef HintBounds = ({double x0, double x1, double y0, double y1});
 
@@ -58,6 +59,37 @@ class OriginalHintCap {
   double get pressWave => math.sin(push * math.pi);
   double get drawY => y + h / 2 - .03 * pressWave - (ring ? .045 : 0);
   double get drawScale => ring ? 1 - .14 * pressWave : 1;
+}
+
+/// Source Ky: approach from the left; retire after actively pushing .3 units.
+class OriginalPushHint {
+  OriginalPushHint(this.body);
+
+  final PushBody body;
+  final cap = OriginalHintCap(1.152 * 1.3, .48 * 1.3);
+  bool done = false, on = false;
+  int shows = 0;
+
+  void update(double dt, PlayerState p) {
+    if (!done && body.pushing != 0 && (body.x - body.homeX).abs() >= .3) {
+      done = true;
+    }
+    final gap = body.left - (p.x + .25);
+    final next =
+        !done &&
+        body.solid &&
+        body.fade == 'none' &&
+        p.grounded &&
+        (p.y - body.y).abs() < .15 &&
+        gap >= -.05 &&
+        gap <= 3;
+    if (next && !on) shows++;
+    on = next;
+    cap.x = body.x;
+    cap.y = body.y + body.height + .9;
+    cap.want = next;
+    cap.update(dt, p);
+  }
 }
 
 /// Default pinned movement hint (Nr), anchored to the start of each journey.

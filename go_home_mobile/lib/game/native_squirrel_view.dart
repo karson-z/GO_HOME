@@ -3,12 +3,40 @@ import 'dart:math' as math;
 import 'package:three_js/three_js.dart' as three;
 
 import 'native_world_assets.dart';
+import 'native_asset_decode.dart';
+import 'native_squirrel_bag.dart';
+import 'original_squirrel_delivery.dart';
 import 'native_puppet_renderer.dart';
+import 'original_puppet_rig.dart';
 import 'original_squirrel.dart';
+import 'original_squirrel_pose.dart';
 
 class NativeSquirrelView {
-  NativeSquirrelView(NativeWorldChunk chunk) {
+  static Future<NativeSquirrelView> load(NativeWorldChunk chunk) async {
+    final data = await Future.wait([
+      decodeNativeJsonAsset('assets/characters/squirrel-delivery.json'),
+      decodeNativeJsonAsset('assets/characters/squirrel-bag.json'),
+    ]);
+    return NativeSquirrelView._(chunk, data[0], data[1]);
+  }
+
+  NativeSquirrelView._(
+    NativeWorldChunk chunk,
+    this.deliveryData,
+    this.bagData,
+  ) {
+    chunk.root.updateMatrixWorld(true);
     for (final n in chunk.nodes) {
+      if (n is three.Mesh &&
+          n.material is three.ShaderMaterial &&
+          n.material!.uniforms.containsKey('uDeep') &&
+          n.material!.uniforms.containsKey('uRim')) {
+        // Source uv places the atlas actor in the hollow's scene layer, .02
+        // ahead of its surface; gameplay coordinates are local to that layer.
+        final at = n.getWorldPosition(three.Vector3());
+        holeZ = n.position.z + .02;
+        layerZ = at.z - n.position.z;
+      }
       if (n.name == 'MOVE_door' || n.name == 'MOVE_slab') {
         doors[n] = n.position.y;
       }
@@ -27,20 +55,84 @@ class NativeSquirrelView {
       }
     }
   }
+  final Map<String, dynamic> deliveryData, bagData;
+  NativeSquirrelBag? bag;
   final Map<three.Object3D, double> doors = {};
   final Map<int, three.Object3D> fruits = {};
+  final Map<int, double> fruitParentZ = {};
+  double layerZ = -3.202, holeZ = -.015;
+  NativePuppetRenderer? actor;
+  OriginalSquirrel? state;
+  OriginalSquirrelPose? motion;
   void update(
     OriginalSquirrel? sq,
     NativePuppetRenderer? rig,
     double ox,
     double oy,
     double time,
+    double dt,
+    double playerX,
   ) {
     for (final entry in doors.entries) {
       entry.key.position.y = entry.value + (sq?.doorY ?? 0);
       entry.key.updateMatrix();
     }
     if (sq == null) return;
+    if (rig == null) return;
+    if (actor != rig || state != sq) {
+      bag?.dispose();
+      bag = NativeSquirrelBag.build(rig, bagData);
+      // Source Gc draws the actor scene after clearDepth(). Preserve that
+      // scenery-independent pass for the squirrel and its attached satchel.
+      rig.material.depthTest = false;
+      for (final material in bag!.materials) {
+        material.depthTest = false;
+      }
+      actor = rig;
+      state = sq;
+      motion = OriginalSquirrelPose(
+        OriginalPuppetRig(rig.data),
+        delivery: OriginalSquirrelDelivery(deliveryData),
+      );
+      rig.number('uLift', .74);
+      rig.number('uFloorAdd', -.11);
+      rig.number('uBandPx', 3);
+      rig.number('uBandL', .067);
+    }
+    final pose = motion!
+      ..update(
+        sq,
+        dt,
+        ox: ox,
+        oy: oy,
+        layerZ: layerZ,
+        holeZ: holeZ,
+        playerX: playerX,
+      );
+    rig.applySkeleton(pose.rig);
+    rig.root.position.setValues(pose.x, pose.y, pose.z);
+    rig.root.scale.setValues(
+      pose.scale,
+      pose.delivery?.sample == null ? pose.scale : pose.delivery!.scaleY,
+      pose.scale,
+    );
+    rig.flip.scale.x = pose.facing;
+    rig.root.rotation.z = pose.rotation;
+    rig.number('uFootY', pose.footY);
+    rig.number('uClipY', pose.clipY);
+    rig.number('uEdgeK', pose.edge);
+    rig.setWake(pose.wake);
+    rig.root.updateMatrix();
+    final delivery = pose.delivery!;
+    bag?.update(
+      rig,
+      propAlpha: delivery.sample != null
+          ? delivery.bagAlpha
+          : (sq.mode == 'sleep' || (sq.mode == 'home' && pose.holeClip > 0))
+          ? 0
+          : 1,
+      pose: delivery.sample == null ? null : delivery.bag,
+    );
     for (var i = 0; i < sq.fruits.length; i++) {
       final f = sq.fruits[i], group = fruits[i];
       if (group == null) continue;
@@ -73,39 +165,33 @@ class NativeSquirrelView {
       );
       group.visible = !(f.state == 'socketed' && sq.doorY <= -5.1);
       group.children[1].visible = f.state == 'hang';
+      if (f.state == 'socketed') {
+        group.position.y += .3 * group.scale.y;
+      } else if (f.state == 'carried' && delivery.sample != null) {
+        group.visible = delivery.carryAt != 0 && delivery.carryScale > .001;
+        group.position.x = sq.pos.x + delivery.carryX;
+        group.position.y = sq.pos.y + delivery.carryY;
+        final size = group.scale.y * delivery.carryScale;
+        group.scale.setValues(
+          size * delivery.carryScaleX,
+          size * delivery.carryScaleY,
+          size,
+        );
+        group.position.y +=
+            .3 * group.scale.y - (delivery.carryAt == 1 ? .04 : 0);
+      }
+      // Source door adapter brings fruit forward with the door face near x24.
+      final parentZ = fruitParentZ.putIfAbsent(
+        i,
+        () => group.parent!.getWorldPosition(three.Vector3()).z,
+      );
+      final doorDepth = OriginalSquirrel.smooth((group.position.x - 21) / 3);
+      group.position.z += doorDepth * (-.765 - parentZ - group.position.z);
       group.updateMatrix();
     }
-    if (rig == null) return;
-    rig.resetPose();
-    final sleeping =
-        sq.mode == 'sleep' ||
-        (sq.mode == 'home' &&
-            (sq.pos.x - 13.5).abs() < .02 &&
-            (sq.pos.y - 2.4).abs() < .02);
-    rig.root.position.setValues(
-      ox + sq.pos.x,
-      oy + (sleeping ? 2.2 : sq.pos.y),
-      sleeping ? .02 : sq.pos.z,
-    );
-    rig.root.scale.setScalar(
-      sleeping ? .8 * .9 / 1.35 : .8 * (1 + sq.flick * .06),
-    );
-    rig.flip.scale.x = sq.direction;
-    rig.root.rotation.z = sq.vertical.sign * math.pi / 2;
-    final running = sq.mode == 'go' || sq.mode == 'carry' || sq.mode == 'back';
-    final leg = running ? math.sin(time * 14) * .45 : 0.0;
-    rig.pose('legF', rot: leg);
-    rig.pose('legB', rot: -leg);
-    rig.pose('armF', rot: -leg * .7);
-    rig.pose('armB', rot: leg * .7);
-    rig.pose(
-      'tail',
-      rot:
-          sq.flick * .5 +
-          (sq.act == 'gnaw' ? math.sin(time * 30) * .15 : 0) +
-          (sq.waiting ? .25 : 0),
-    );
-    rig.setWake(sleeping ? 0 : 1);
-    rig.root.updateMatrix();
+  }
+
+  void dispose() {
+    bag?.dispose();
   }
 }

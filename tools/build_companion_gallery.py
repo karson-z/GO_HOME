@@ -180,14 +180,18 @@ def verify_and_package(motion):
         assert animation.n_frames==len(paths)
         checks.append({'id':clip['id'],'frames':len(paths),'rgba':True,'noClipping':True,'webpFrames':animation.n_frames})
     listen=next(c for c in motion['clips'] if c['id']=='listen')
-    for frame in listen['frames'][15:45]:
+    for frame in listen['frames']:
         bones=frame['bones']
-        # The far elbow and hand stay behind the far shoulder in profile;
-        # their layer remains behind both the cape and head.
-        assert bones['foreArmB'][4]<bones['upperArmB'][4]
-        assert bones['handB'][4]<bones['upperArmB'][4]
+        # Neither hand reaches the face; the lowered lamp remains upright.
+        assert bones['handF'][5]<bones['upperArmF'][5]-.1
+        assert bones['handB'][5]<bones['upperArmB'][5]-.2
+        assert abs(math.atan2(bones['musicbox'][1],bones['musicbox'][0]))<.025
         assert all(frame.get('layers',{}).get(name,LAYERS[name])<LAYERS['body'] for name in ('upperArmB','foreArmB','handB'))
-    (OUT/'verification.json').write_text(json.dumps({'passed':True,'revision':'arm-depth-correction','totalFrames':sum(c['frames'] for c in checks),'clips':checks,'armDepth':'Far shoulder separated; far arm remains behind cape/head; listening elbow and hand remain on rear side.'},ensure_ascii=False,indent=2))
+    for side in ('F','B'):
+        heights=[f['bones'][f'foot{side}'][5] for f in listen['frames']]
+        assert max(heights)-min(heights)<.002
+    assert listen['frames'][30]['bones']['musicbox'][5]<listen['frames'][0]['bones']['musicbox'][5]-.10
+    (OUT/'verification.json').write_text(json.dumps({'passed':True,'revision':'listen-lower-lamp-2026-11-17','totalFrames':sum(c['frames'] for c in checks),'clips':checks,'listening':'75 frames / 2.5 seconds: stagger feet, lower lamp, lean head forward, quiet hold, recover. Both hands stay below shoulders; feet remain planted; lamp tilt under 1.5 degrees.'},ensure_ascii=False,indent=2))
     files=[]
     for folder in ('parts','frames','animations','spritesheets'):
         files.extend(sorted((OUT/folder).glob('*')))
@@ -246,7 +250,8 @@ def build():
     closeups=[backdrop(f).crop(crop) for f in listen[::2]]
     palette=closeups[0].quantize(colors=256)
     closeups=[f.quantize(palette=palette,dither=Image.Dither.NONE) for f in closeups]
-    closeups[0].save(OUT/'listen-preview.gif',save_all=True,append_images=closeups[1:],duration=[67,66,67]*12,loop=0,disposal=2,optimize=False)
+    durations=[round(min(i+2,len(listen))*1000/30)-round(i*1000/30) for i in range(0,len(listen),2)]
+    closeups[0].save(OUT/'listen-preview.gif',save_all=True,append_images=closeups[1:],duration=durations,loop=0,disposal=2,optimize=False)
     (OUT/'manifest.json').write_text(json.dumps({'character':'苔音 / Moss','clips':manifest,'totalFrames':sum(len(c['frames']) for c in motion['clips']),'simulationHz':60,'fps':30,'rendering':'Offline RGBA cutout compositing from actual game skeleton transforms','integration':'Design asset package; not yet wired into Flutter gameplay'},ensure_ascii=False,indent=2))
     payload={'rig':spec,'motion':motion,'images':{k:data_url(v) for k,v in images.items()},'concept':data_url(Image.open(OUT/'character-design.jpg'))}
     template=(ROOT/'tools/companion_gallery.html').read_text()

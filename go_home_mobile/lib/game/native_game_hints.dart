@@ -39,6 +39,7 @@ class NativeGameHints {
   final pool = <three.Sprite>[];
   OriginalMoveHint move = OriginalMoveHint();
   OriginalJumpHint? jump;
+  final pushHints = <OriginalPushHint>[];
   OriginalMusicBoxHint musicBox = OriginalMusicBoxHint();
   bool _pauseHushed = false;
   double _hushFrom = 1, _hushAt = 0;
@@ -74,6 +75,7 @@ class NativeGameHints {
   int woodHeard = 0;
   CallerRun? woodRun;
   int lastSerial = 0, lastListen = 0, journey = 0;
+  int lastJourneyRevision = -1;
   double lastTime = 0, oneOn = -1;
   Object? lastOpening;
   int fireflyWrongs = 0, fireflyStage = -1;
@@ -100,6 +102,7 @@ class NativeGameHints {
   void _reset(GameController game) {
     journey++;
     move = OriginalMoveHint();
+    pushHints.clear();
     musicBox = OriginalMusicBoxHint();
     five = OriginalFiveHint();
     woodLights = OriginalWoodHintLights();
@@ -151,12 +154,18 @@ class NativeGameHints {
     }
   }
 
-  void _drawCap(List<HintDraw> out, OriginalHintCap cap, String texture) {
+  void _drawCap(
+    List<HintDraw> out,
+    OriginalHintCap cap,
+    String texture, {
+    double offsetX = 0,
+    double offsetY = 0,
+  }) {
     out.add(
       HintDraw(
         texture,
-        cap.x,
-        cap.drawY,
+        cap.x + offsetX,
+        cap.drawY + offsetY,
         cap.w * cap.drawScale,
         cap.h * cap.drawScale,
         cap.a,
@@ -180,11 +189,13 @@ class NativeGameHints {
     }
     musicBox.numberMode = game.hintMode;
     final time = game.animationTime;
-    if (time < lastTime ||
+    if (game.journeyRevision != lastJourneyRevision ||
+        time < lastTime ||
         game.opening != null && !identical(lastOpening, game.opening) ||
         wasMenu && game.mode == GameMode.playing) {
       _reset(game);
     }
+    lastJourneyRevision = game.journeyRevision;
     lastOpening = game.opening;
     wasMenu = game.mode == GameMode.menu;
     final dt = game.isPlaying ? (time - lastTime).clamp(0.0, .1) : 0.0;
@@ -233,6 +244,28 @@ class NativeGameHints {
     final local = PlayerState(p.x - ox, p.y - oy)
       ..grounded = p.grounded
       ..facing = p.facing;
+    final hedgehog = game.hedgehog;
+    if (hedgehog != null) {
+      if (pushHints.isEmpty ||
+          !identical(pushHints.first.body, hedgehog.stump)) {
+        pushHints
+          ..clear()
+          ..addAll([
+            OriginalPushHint(hedgehog.stump),
+            OriginalPushHint(hedgehog.ball),
+          ]);
+      }
+      for (final hint in pushHints) {
+        hint.update(dt, local);
+        _drawCap(
+          out,
+          hint.cap,
+          'push-${hint.body.id}',
+          offsetX: ox,
+          offsetY: oy,
+        );
+      }
+    }
     final firefly = game.firefly;
     var first = false,
         quiet = false,
@@ -340,7 +373,14 @@ class NativeGameHints {
             y1: caller.y + 1.6,
           );
       }
-      _syncRow(row, id, caller.run, caller.judge, caller.state == 'awake');
+      _syncRow(
+        row,
+        id,
+        caller.run,
+        caller.judge,
+        caller.state == 'awake',
+        caller.wrongs,
+      );
       row.update(
         dt,
         caller.state,
@@ -501,6 +541,7 @@ class NativeGameHints {
         squirrel.doorRun,
         judge,
         squirrel.doorState == 'awake',
+        squirrel.doorWrongs,
       );
       final x =
           ox +
@@ -717,7 +758,7 @@ class NativeGameHints {
       }
       commandCounts[id] = count;
     }
-    if (judge != null) _syncRow(row, id, null, judge, false);
+    if (judge != null) _syncRow(row, id, null, judge, false, judge.fails);
     final state = !on
         ? 'sleep'
         : (commandCounts[id] ?? 0) < keys.length
@@ -744,6 +785,7 @@ class NativeGameHints {
     CallerRun? run,
     OriginalRhythmJudge judge,
     bool awake,
+    int wrongs,
   ) {
     final previousRun = runs[id];
     if (previousRun != null &&
@@ -776,7 +818,11 @@ class NativeGameHints {
       }
     }
     final failure = judge.lastFail;
-    if (judge.fails > row.seenWrongs && failure != null) {
+    // The caller deliberately keeps mistakes during its demonstration quiet.
+    // judge.fails includes those mistakes; row.seenWrongs tracks the caller's
+    // visible failures. Comparing those different counters replays lastFail on
+    // every frame, recreating live rings even after the answer is complete.
+    if (wrongs > row.seenWrongs && failure != null) {
       final taps = (failure['taps'] as List)
           .cast<({int degree, double time})>();
       row.played(taps, (failure['scale'] as num).toDouble());

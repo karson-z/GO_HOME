@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'dart:math' as math;
 
-import 'package:flutter/services.dart';
 import 'package:three_js/three_js.dart' as three;
 
 import 'native_world_assets.dart';
+import 'native_asset_decode.dart';
 import 'native_puppet_renderer.dart';
 import 'original_bear.dart';
 import 'original_bear_motion.dart';
@@ -33,10 +32,8 @@ class NativeBearView {
     three.Scene scene,
     Map<String, dynamic> shared,
   ) async {
-    final shaders = Map<String, dynamic>.from(
-      jsonDecode(
-        await rootBundle.loadString('assets/data/original_shaders.json'),
-      ),
+    final shaders = await decodeNativeJsonAsset(
+      'assets/data/original_shaders.json',
     );
     final turn = await NativePuppetRenderer.load('bear-turn', shared);
     return NativeBearView._(chunk, scene, shared, shaders, turn);
@@ -46,10 +43,8 @@ class NativeBearView {
     three.Group root,
     Map<String, dynamic> shared,
   ) async {
-    final shaders = Map<String, dynamic>.from(
-      jsonDecode(
-        await rootBundle.loadString('assets/data/original_shaders.json'),
-      ),
+    final shaders = await decodeNativeJsonAsset(
+      'assets/data/original_shaders.json',
     );
     final turn = await NativePuppetRenderer.load('bear-turn', shared);
     return NativeBearView._(null, root, shared, shaders, turn, ending: true);

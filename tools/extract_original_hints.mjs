@@ -7,7 +7,7 @@ GlobalFonts.registerFromPath('go_home_mobile/assets/fonts/gaegu.ttf','TGJ Gaegu'
 GlobalFonts.registerFromPath('go_home_mobile/assets/fonts/wenkai.ttf','TGJ Xiaolai');
 const c=(await import('./.reference_runtime/BiOZAGIX.js')).__port;
 const out='go_home_mobile/assets/hints'; fs.mkdirSync(out,{recursive:true});
-const data={textures:{},constants:{comb:c.$g,firefly:c.sm,motes:c.vp,move:{delay:.15,fadeIn:.7,fadeOut:1.2,awayK:.5,above:1.45},jump:{lead:3.5,above:2.25,pass:.4}},source:'BiOZAGIX.js xu, Od, w_, Ip, pm; uwcej6eE.js Nr/Dr'};
+const data={textures:{},constants:{comb:c.$g,firefly:c.sm,motes:c.vp,move:{delay:.15,fadeIn:.7,fadeOut:1.2,awayK:.5,above:1.45},jump:{lead:3.5,above:2.25,pass:.4},push:c.Wy},source:'BiOZAGIX.js xu, Ky, Od, w_, Ip, pm; uwcej6eE.js Nr/Dr'};
 function save(name,t,w=1,h=1){
  const texture=t?.tex??t;
  if(!texture?.image?.toBuffer)throw Error('Missing original hint canvas: '+name);
@@ -18,6 +18,10 @@ const slash={slash:true};
 const items=[{label:'A'},{label:'D'},slash,{arrow:'left'},{arrow:'right'}];
 for (const [name,opts] of Object.entries({move:{items,seed:41},jump:{items:[{label:'Space',w:1/.36},slash,{arrow:'up'}],seed:23},talk:{items:[{label:'J'}],seed:31}})) {
  save(name,c.pu(opts.items,'hand',opts.seed));
+}
+// Original Ky push artwork uses distinct hand-drawn seeds for each body.
+for(const [id,seed] of [['stump',53],['ball',59]]) {
+ save(`push-${id}`,c.pu([{arrow:'right'},{glyph:'push',w:1.7}],'hand',seed));
 }
 // Exact original keyghost replacement textures, including holes in unlit keys.
 for(const [name,selected] of Object.entries({move_left:[0,3],move_right:[1,4]})) {

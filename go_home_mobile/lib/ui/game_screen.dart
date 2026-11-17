@@ -10,6 +10,7 @@ import 'original_start_menu.dart';
 import 'original_settings.dart';
 import 'original_pause_menu.dart';
 import 'original_resume_veil.dart';
+import 'original_scene_progress.dart';
 import '../game/world_view.dart';
 import '../game/original_world_view.dart';
 
@@ -212,6 +213,7 @@ class _GameScreenState extends State<GameScreen> {
               Positioned.fill(child: TransparentGameInput(game: game)),
             if (game.opening == null && !game.cinematic && !game.loading)
               OriginalMenuCorner(onTap: game.pause, english: game.english),
+            OriginalSceneProgressToast(game: game),
             if (game.chapterHints.current != null)
               Positioned(
                 top: MediaQuery.sizeOf(context).height * .24,

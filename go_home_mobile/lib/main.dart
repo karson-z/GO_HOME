@@ -45,22 +45,46 @@ class GoHomeApp extends StatefulWidget {
 
 class _GoHomeAppState extends State<GoHomeApp> with WidgetsBindingObserver {
   late final GameAudio audio;
+  late GameMode _lastMode;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _lastMode = widget.game.mode;
+    widget.game.addListener(_restoreGameSystemUi);
+    unawaited(
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
+    );
     audio = GameAudio(widget.game);
     unawaited(audio.initialize());
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) widget.game.pause();
+    if (state == AppLifecycleState.resumed) {
+      unawaited(
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
+      );
+    } else {
+      widget.game.pause();
+    }
+  }
+
+  void _restoreGameSystemUi() {
+    final mode = widget.game.mode;
+    if (mode == _lastMode) return;
+    _lastMode = mode;
+    if (mode == GameMode.playing) {
+      unawaited(
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
+      );
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.game.removeListener(_restoreGameSystemUi);
     unawaited(audio.dispose());
     super.dispose();
   }

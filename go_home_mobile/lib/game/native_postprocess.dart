@@ -28,6 +28,7 @@ class NativePostprocess {
   double? sceneResolution;
   bool initialized = false;
   void Function(three.Renderer renderer)? beforeSceneRender;
+  void Function(String stage, int microseconds)? onProfileStage;
 
   Future<void> initialize() async {
     final data = jsonDecode(
@@ -181,6 +182,14 @@ class NativePostprocess {
 
   void render([double? dt]) {
     if (!initialized) return;
+    final profile = onProfileStage;
+    final watch = profile == null ? null : (Stopwatch()..start());
+    void mark(String stage) {
+      if (watch == null) return;
+      profile!(stage, watch.elapsedMicroseconds);
+      watch.reset();
+    }
+
     resize();
     final renderer = viewer.renderer!;
     // Flutter Angle's presentation blit changes GL program, VAO and active
@@ -189,18 +198,22 @@ class NativePostprocess {
     renderer.resetState();
     renderer.setRenderTarget(output);
     beforeSceneRender?.call(renderer);
+    mark('charactersAndCulling');
     final previous = renderer.getRenderTarget();
     final autoClear = renderer.autoClear;
     renderer.autoClear = false;
     renderer.setRenderTarget(sceneTarget);
     renderer.clear();
     renderer.render(viewer.scene, viewer.camera);
+    mark('world');
     guard.uniforms['tDiffuse']['value'] = sceneTarget.texture;
     pass(guard, guarded);
+    mark('guard');
     high.uniforms['tDiffuse']['value'] = guarded.texture;
     high.uniforms['luminosityThreshold']['value'] = threshold;
     high.uniforms['smoothWidth']['value'] = .5;
     pass(high, bloomBright);
+    mark('bloomExtract');
     var input = bloomBright;
     for (var i = 0; i < 5; i++) {
       blur[i].uniforms['colorTexture']['value'] = input.texture;
@@ -211,14 +224,18 @@ class NativePostprocess {
       pass(blur[i], vertical[i]);
       input = vertical[i];
     }
+    mark('bloomBlur');
     composite.uniforms['bloomStrength']['value'] = strength;
     pass(composite, bloomComposite);
     blend.uniforms['tDiffuse']['value'] = bloomComposite.texture;
     pass(blend, guarded, clear: false);
+    mark('bloomComposite');
     grade.uniforms['tDiffuse']['value'] = guarded.texture;
     pass(grade, graded);
+    mark('grade');
     finalPass.uniforms['tDiffuse']['value'] = graded.texture;
     pass(finalPass, previous);
+    mark('final');
     renderer.autoClear = autoClear;
   }
 

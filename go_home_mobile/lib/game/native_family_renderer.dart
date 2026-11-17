@@ -1,7 +1,6 @@
-import 'dart:convert';
-
-import 'package:flutter/services.dart';
 import 'package:three_js/three_js.dart' as three;
+
+import 'native_asset_decode.dart';
 
 import 'native_boy_renderer.dart';
 import 'original_ending.dart';
@@ -29,9 +28,7 @@ class NativeFamilyRenderer {
     Map<String, dynamic> shared,
   ) async {
     final name = who == 'soul' ? 'boy' : 'fam2-$who',
-        data = jsonDecode(
-          await rootBundle.loadString('assets/characters/$name.json'),
-        );
+        data = await decodeNativeJsonAsset('assets/characters/$name.json');
     const props = {
       'dad': 0xd2382f,
       'mom': 0xffe27a,
@@ -74,9 +71,7 @@ class NativeFamilyRenderer {
         who,
         Map<String, dynamic>.from(data),
         Map<String, dynamic>.from(
-          jsonDecode(
-            await rootBundle.loadString('assets/data/original_boy_motion.json'),
-          ),
+          await decodeNativeJsonAsset('assets/data/original_boy_motion.json'),
         ),
       ),
     );
