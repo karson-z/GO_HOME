@@ -2946,13 +2946,13 @@
   },
   {
     "path": "world/W0.bin",
-    "bytes": 8206052,
-    "sha256": "1affa0d48df1f4830415af407bc2ed48efa1984e0800787cecb944d1b7f1d66c"
+    "bytes": 5019516,
+    "sha256": "cbb27627f7a2daa241b88e8e4b96037396abfc3e6e63c0c8251b9aa70d6a21e9"
   },
   {
     "path": "world/W0.json",
-    "bytes": 766941,
-    "sha256": "d48635b2a1a48a41ab310530d67f9bb8bbc3bb34d36058fe3a22c532b60fcad9"
+    "bytes": 572300,
+    "sha256": "293e726f1cdffbcfc2ffc1eb0ab3f8a62a477a1a16ae8b99686742fb7ad799bd"
   },
   {
     "path": "world/W1.bin",
@@ -2961,8 +2961,8 @@
   },
   {
     "path": "world/W1.json",
-    "bytes": 414680,
-    "sha256": "db0260327c1a6e56b29d7efcf019bb1ba370c84c902fbaf87c02954e2e37c353"
+    "bytes": 422784,
+    "sha256": "3cc8243664dc31bbcdb567235a51738842f6d7d2fdd8f601adbd8c2998ef5c59"
   },
   {
     "path": "world/W3.bin",
@@ -2971,8 +2971,8 @@
   },
   {
     "path": "world/W3.json",
-    "bytes": 404073,
-    "sha256": "d83488c518b4f43de3d2eed5069b6f67e36b2f4e647052b421087b1c08ef0510"
+    "bytes": 412630,
+    "sha256": "66834999396675444b018c4a6ee328673ec46cc4ddfcadaf930b7216ff602b76"
   },
   {
     "path": "world/W6.bin",
@@ -2981,8 +2981,8 @@
   },
   {
     "path": "world/W6.json",
-    "bytes": 694124,
-    "sha256": "ac2fa4d9b5ef2dff2693467bff53f3a885705c023e7a592a1db180dbb1e7fc44"
+    "bytes": 711970,
+    "sha256": "ffae35b78cb8fd96346f2f4d560902d2b23dace99fca175cb52406d9b84b3588"
   },
   {
     "path": "world/W7.bin",
@@ -2991,18 +2991,18 @@
   },
   {
     "path": "world/W7.json",
-    "bytes": 448886,
-    "sha256": "cd567d9b79f07792e0295ef8d8eb6bb8dda5adc2101adb4f43bef0f2424b4234"
+    "bytes": 458461,
+    "sha256": "0b266ccc364bf69ac8ca1e3167b89f8b90bf99c49369a220c1c5ed2eb6eee104"
   },
   {
     "path": "world/_global.bin",
-    "bytes": 1183888,
-    "sha256": "e8bd09c0db3d8191232fbb0861690893f54e9cf78233b2bb357b3628515d0358"
+    "bytes": 4805640,
+    "sha256": "f9b235bff52c57b423e3c150a7ea35854e140a86c9a3d943726d17c4bbd5b035"
   },
   {
     "path": "world/_global.json",
-    "bytes": 248945,
-    "sha256": "a9c7adca8256422eb5bad22641f6616bf289ed5187684a5ba69420ca039e98c4"
+    "bytes": 486921,
+    "sha256": "d27a0c55d95ba87fa3a31a54474b3f6e06d67bcf5138c6fda64fe3a28af92f07"
   },
   {
     "path": "world/cave-bat.bin",
@@ -3011,8 +3011,8 @@
   },
   {
     "path": "world/cave-bat.json",
-    "bytes": 704048,
-    "sha256": "87ff601a7d6fe670686310d513fc3bceed042952f26d14fdf97f0bc706117421"
+    "bytes": 726850,
+    "sha256": "383e857ec3a7b23f88ef8b1236ecd713c76eb746357fafc38436aa7f4569b8df"
   },
   {
     "path": "world/dawn-bear.bin",
@@ -3021,8 +3021,8 @@
   },
   {
     "path": "world/dawn-bear.json",
-    "bytes": 498791,
-    "sha256": "662a0709814125f148e920fdf172e711e7d01f94bd0dbc898533e3412fdd0edb"
+    "bytes": 514401,
+    "sha256": "37bfcded3034f3dfcc0483ea14bb2d3be415a1ddd57f50495d87ce9a1c831cfc"
   },
   {
     "path": "world/dawn-woodpecker.bin",
@@ -3031,8 +3031,8 @@
   },
   {
     "path": "world/dawn-woodpecker.json",
-    "bytes": 486251,
-    "sha256": "d9770e850b544527159e215e4a0cb3577821cc589fb4255c68f39b9706c484bf"
+    "bytes": 500565,
+    "sha256": "d5a3236bdb89f8662abb1c6db3d45454806297c33bf854c146c9ddc8149ca4eb"
   },
   {
     "path": "world/dusk-firefly.bin",
@@ -3041,8 +3041,8 @@
   },
   {
     "path": "world/dusk-firefly.json",
-    "bytes": 373825,
-    "sha256": "41a2ddd4c046c78f1e1060df29af07de713416aa5466705c9dd0a30483803eb2"
+    "bytes": 383351,
+    "sha256": "785b448b4023ad4b31d1e91a6acabc596bc3e8fe0b15f9488967390dad25b74e"
   },
   {
     "path": "world/dusk-hedgehog.bin",
@@ -3051,8 +3051,8 @@
   },
   {
     "path": "world/dusk-hedgehog.json",
-    "bytes": 393757,
-    "sha256": "9d5f5416db27dea8fb856d952b1683fd5d2d35322ae8739f5dc9b312c8ed017e"
+    "bytes": 406250,
+    "sha256": "bd65b42e10dd395767d64cfeaba429f76a8aed86ed703fc92bc2d14de2513259"
   },
   {
     "path": "world/dusk-squirrel.bin",
@@ -3061,13 +3061,13 @@
   },
   {
     "path": "world/dusk-squirrel.json",
-    "bytes": 423076,
-    "sha256": "d424cf2ef58ddfbcd06d6112feca7ac42cea0597071497dbc0febe57d32c2095"
+    "bytes": 440602,
+    "sha256": "d325cf6e31b2e639b05dbee592829cf97db8fa808360f09623f30412081b1cd4"
   },
   {
     "path": "world/manifest.json",
-    "bytes": 1548,
-    "sha256": "0248e1b83b96bb729335e194bfb41d6159211b9d0366ea9a6c19736aca7f31a3"
+    "bytes": 1776,
+    "sha256": "5ad9716552e86582486cec7585fb16fc913ed1fd47a30d7a5eeae2890f67daf0"
   },
   {
     "path": "world/night-owl.bin",
@@ -3076,18 +3076,18 @@
   },
   {
     "path": "world/night-owl.json",
-    "bytes": 499861,
-    "sha256": "7c2613505713e805310662f06368ca3a46c55f62c47f04dfd1d09d024f2a2259"
+    "bytes": 517449,
+    "sha256": "ed5ac45fe05830214659a17bc0fdf258d0d1ee6dfb3de3ac5fb82450a5c1cedf"
   },
   {
     "path": "world/night-turtle.bin",
-    "bytes": 4249144,
-    "sha256": "fbed49db3c0fa30d48b4392aae22b556428a779b6590597b515c6be9e8c099ba"
+    "bytes": 3815720,
+    "sha256": "b4d12a67b5b802c896a39c24ac8d6a8e77fc3e8c12e5872d47dacfd469e27f32"
   },
   {
     "path": "world/night-turtle.json",
-    "bytes": 650709,
-    "sha256": "5df63076c0f7cc4f7d10a5d16231d69d7b55f83f00d4f15ab9772f87bb4b1193"
+    "bytes": 655663,
+    "sha256": "c89b2dde1aef93a52c60c540c13075ddb2739f36fd5cf9ac48b1e3ddb99ae6da"
   },
   {
     "path": "world/postprocess.json",
@@ -3096,8 +3096,8 @@
   },
   {
     "path": "world/resources.json",
-    "bytes": 1581756,
-    "sha256": "7fe5706b4d1491ad228a07c4ec8525510ab232290e6c6576d4d1f0e1d06cd0e5"
+    "bytes": 1584061,
+    "sha256": "0959fbf704955ce8c06de57a442cfd7bc199110fee1708280645b1f523bc25a5"
   },
   {
     "path": "world/route-ending.bin",
@@ -3106,8 +3106,8 @@
   },
   {
     "path": "world/route-ending.json",
-    "bytes": 1142839,
-    "sha256": "63a8ecc853e1f87c47500afac620f11f576aa5f69d837912d1cf9cc94ecb559c"
+    "bytes": 1215768,
+    "sha256": "b009f5dfcff97ffc82ed88b0937f2e5ebb2cf180c75bf479d7d9c022aab6586a"
   },
   {
     "path": "world/textures/07e1130ddac07f80f83d.webp",

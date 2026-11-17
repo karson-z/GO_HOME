@@ -143,6 +143,13 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         for (final animal in animals.values) {
           animal.renderParts(r);
         }
+        final frustum = viewFrustum();
+        updateSceneVisibility(frustum);
+        renderer.scene.updateMatrixWorld(true);
+        global?.culling.update(frustum);
+        for (final chunk in chunks.values) {
+          chunk.culling.update(frustum);
+        }
       };
       renderer.postProcessor = post!.render;
       if (disposed) return;
@@ -230,11 +237,19 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
 
   Future<void> stream({bool blocking = false}) async {
     final jobs = <Future<void>>[];
-    for (final meta in assets.manifest) {
+    final current = sceneIndex;
+    final frustum = viewFrustum();
+    for (var index = 0; index < assets.manifest.length; index++) {
+      final meta = assets.manifest[index];
       final id = meta['id'] as String;
+      final distance = (index - current).abs();
+      final chunk = chunks[id];
       final close =
-          ((meta['x1'] as num) >= game.x - 70 &&
-              (meta['x0'] as num) <= game.x + 80) ||
+          (index >= current - 1 && index <= current + 2) ||
+          (chunk != null &&
+              (index == 0 ||
+                  distance <= 2 ||
+                  distance <= 3 && chunk.intersectsView(frustum))) ||
           (id == 'W0' && (game.ending?.flightTime ?? -1) >= 0);
       if (close && !chunks.containsKey(id) && !pending.contains(id)) {
         jobs.add(loadChunk(id));
@@ -310,6 +325,56 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       unawaited(job.whenComplete(() => loadingJobs.remove(job)));
     }
     if (blocking) await Future.wait(loadingJobs.toList());
+  }
+
+  int get sceneIndex {
+    final index = assets.manifest.indexWhere(
+      (meta) => game.x < (meta['x1'] as num),
+    );
+    return index < 0 ? assets.manifest.length - 1 : index;
+  }
+
+  three.Frustum viewFrustum() {
+    renderer.camera.updateMatrixWorld(true);
+    return three.Frustum()..setFromMatrix(
+      three.Matrix4.identity()..multiply2(
+        renderer.camera.projectionMatrix,
+        renderer.camera.matrixWorldInverse,
+      ),
+    );
+  }
+
+  void updateSceneVisibility(three.Frustum frustum) {
+    final current = sceneIndex;
+    final flight = (game.ending?.flightTime ?? -1) >= 0;
+    final returning = flight && (game.ending?.loopDown ?? false);
+    for (var index = 0; index < assets.manifest.length; index++) {
+      final meta = assets.manifest[index];
+      final chunk = chunks[meta['id']];
+      if (chunk == null) continue;
+      final active = returning
+          ? index == 0
+          : index >= current - 1 && index <= current + 2;
+      final shownCam = meta['shownCam'] as List?;
+      final localCameraX = renderer.camera.position.x - (meta['ox'] as num);
+      final shown =
+          shownCam == null ||
+          localCameraX >= (shownCam[0] as num) &&
+              localCameraX <= (shownCam[1] as num);
+      chunk.root.visible = flight
+          ? (returning && index == 0) || meta['id'] == 'route-ending'
+          : active
+          ? shown
+          : (index - current).abs() <= 3 && chunk.intersectsView(frustum);
+      for (final root in chunk.root.children) {
+        if (root.name == 'ATMOSPHERE') root.visible = active;
+      }
+      if (meta['id'] == 'W0') {
+        for (final node in chunk.nodes) {
+          if (node.name == 'POND_WATER') node.visible = !returning;
+        }
+      }
+    }
   }
 
   dynamic uniform(String name) => assets.shared[name]?['value'];
@@ -560,7 +625,12 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       endSegment.oy,
     );
     for (final chunk in chunks.values) {
-      chunk.updateMist(pose.look[0], assets.groundAt(global!, pose.look[0]));
+      chunk.updateLake(game.x);
+      chunk.updateMist(
+        pose.pos[0],
+        assets.groundAt(global!, pose.pos[0]),
+        pose.pos[2],
+      );
     }
     final elapsed = game.isPlaying ? dt.clamp(0.0, .1) : 0.0;
     hedgeView?.update(game.hedgehogState, elapsed);
@@ -657,6 +727,25 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         wind.x += (target - wind.x) * (1 - math.exp(-elapsed / 1.5));
       }
       post?.updatePalette(p, game.animationTime);
+      for (final chunk in chunks.values) {
+        chunk.updateBeams(
+          pose.pos[0],
+          (p['rays'] as num).toDouble(),
+          uniform('uLightDir') as three.Vector3,
+        );
+      }
+      final particles = global!.nodes.whereType<three.Points>();
+      for (final node in particles) {
+        if (node.name != 'PARTICLES') continue;
+        final u = node.material!.uniforms;
+        (u['uCam']['value'] as three.Vector3).setValues(
+          pose.pos[0],
+          pose.pos[1],
+          0,
+        );
+        u['uMotes']['value'] = (p['motes'] as num) * .9;
+        u['uPx']['value'] = (post!.height * .5) / math.tan(28 * math.pi / 360);
+      }
       final t = (p['paletteTime'] as num).toDouble();
       currentPaletteT = t;
       boy?.setPaletteT(t);

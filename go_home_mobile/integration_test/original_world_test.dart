@@ -544,6 +544,13 @@ void main() {
           final dynamic current = tester.state(find.byType(OriginalWorldView));
           final NativeEndingView ending = current.endingView;
           final artist = ending.artistFirefly;
+          if (game.ending!.loopDown) {
+            expect(
+              current.chunks['W0'].root.visible,
+              isTrue,
+              reason: 'Return flight must reveal the original opening scene',
+            );
+          }
           expect(artist.rasterError, isNull);
           if (artist.root.visible) {
             expect(artist.uploads, greaterThan(0));

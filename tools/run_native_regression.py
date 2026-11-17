@@ -2,15 +2,17 @@
 from pathlib import Path
 import subprocess, shutil, sys, os
 root=Path(__file__).resolve().parents[1]
-output=root/'artifacts/current-native'
+output=root/(sys.argv[3] if len(sys.argv)>3 else 'artifacts/current-native')
 output.mkdir(parents=True,exist_ok=True)
 flutter=os.environ.get('GOHOME_FLUTTER')
 if not flutter:
  pinned=Path.home()/'fvm/versions/3.47.1/bin/flutter'
  flutter=str(pinned) if pinned.is_file() else shutil.which('flutter')
 if not flutter:sys.exit('Flutter 3.47.1 is required; set GOHOME_FLUTTER.')
-command=[flutter,'test','--no-pub','integration_test/original_world_test.dart','-d',sys.argv[1],'--reporter','expanded']
-with (root/'artifacts/native-final-regression.log').open('w') as log:
+test_path=sys.argv[2] if len(sys.argv)>2 else 'integration_test/original_world_test.dart'
+command=[flutter,'test','--no-pub',test_path,'-d',sys.argv[1],'--reporter','expanded']
+log_path=output/'regression.log' if len(sys.argv)>2 else root/'artifacts/native-final-regression.log'
+with log_path.open('w') as log:
  process=subprocess.Popen(command,cwd=root/'go_home_mobile',stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,bufsize=1)
  for line in process.stdout:
   log.write(line);log.flush()

@@ -35,6 +35,7 @@ const game={player:{x:1,y:10,vx:0,vy:0,grounded:true,facing:1},t:0,dt:1/60,
  runtime:{mgr:{runs:[]}},rig:{hold:null},o:{variants:{}},music:{ready:false}};
 const writer=new NativeSceneWriter(root,shared);
 const manifests=[];
+const persistentRoots=[];
 const defs=look.bV;
 for(const def of defs){
  if(process.argv[2]&&def.segId!==process.argv[2])continue;
@@ -62,10 +63,22 @@ for(const def of defs){
  assets:{leafTex,cells,glow:glowTex,model:look.Co,texture:async file=>{const tex=new look.se();tex.name=`./look/fog/${file}`;tex.userData={sourceFile:tex.name};tex.image={width:1024,height:1024};return tex;},scene:(name,options)=>look.ls(name,shared,options)}};
  try{
   const built=await def.build(ctx);
-  look.Po(group,x0,x1);look.Io(group);look.Ro(group,x0,x1);
+  if(!def.keepAll){look.Po(group,x0,x1);look.Io(group);}
+  look.Ro(group,x0,x1);
   const atmosphere=new look.li(shared,x=>surface.smooth(x),built.mist??[],built.beams??[]);
+  const index=defs.indexOf(def);
+  const blend=(a,b)=>Math.min(a?.blend??12,b?.blendIn??b?.blend??12);
+  const left=blend(defs[index-1],def),right=blend(def,defs[index+1]);
+  atmosphere.setZone(index>0?x0-left:-1e6,index>0?x0+left:-1e6+1,index<defs.length-1?x1-right:1e6,index<defs.length-1?x1+right:1e6+1);
   const air=new look.m();air.name='ATMOSPHERE';air.add(...atmosphere.objects);scene.add(air);
   const roots=scene.children.filter(o=>!previousRoots.has(o));
+  // Original Uv/_l registers shared dusk backdrops with the global far scene.
+  // They span several chapters and must survive unloading the opening chunk.
+  for(const entry of look.gl)entry.o.userData.farVisibility={from:entry.from,until:entry.until};
+  const persistent=roots.filter(o=>look.gl.some(entry=>entry.o===o));
+  persistentRoots.push(...persistent);
+  const localRoots=roots.filter(o=>!persistent.includes(o));
+  for(const entry of look.Mo(localRoots.filter(o=>o!==air)))entry.o.userData.portVisibilityBox={min:entry.box.min.toArray(),max:entry.box.max.toArray()};
   const palette=[];const mapping=new look.YS(L,undefined,defs.flatMap(d=>d.timeKeys?[{at:d.segId,keys:d.timeKeys}]:[]));
   for(let x=x0-16;x<=x1+16;x+=.5){
    const state=look.rc(mapping.at(x),new look.ec());
@@ -75,17 +88,29 @@ for(const def of defs){
    look.cH(state,x);look.hc(state,x,look.mc(''));look.yc(state,x);look.Cc(state,x);
    palette.push({paletteTime:mapping.at(x),...Object.fromEntries(Object.entries(state).filter(([k,v])=>k!=='wind'&&k!=='t').map(([k,v])=>[k,v?.isColor?[v.r,v.g,v.b]:Array.isArray(v)?v.map(c=>c?.isColor?[c.r,c.g,c.b]:c):v]))});
   }
-  const entry=writer.write(def.segId,roots,{x0,x1,ox,oy,paletteX0:x0-16,paletteStep:.5,palette,boyGlow:built.boyGlow??null,darkZone:built.darkZone??null,mist:built.mist??[],beams:built.beams??[],view:built.view?.v??null});
-  manifests.push({...entry,x0,x1,ox,oy});console.log('BUILT',entry.id,entry.bytes,'bytes',entry.nodes,'geometries',entry.materials,'materials');
+  const entry=writer.write(def.segId,localRoots,{x0,x1,ox,oy,paletteX0:x0-16,paletteStep:.5,palette,boyGlow:built.boyGlow??null,darkZone:built.darkZone??null,mist:built.mist??[],beams:built.beams??[],view:built.view?.v??null});
+  manifests.push({...entry,x0,x1,ox,oy,shownCam:def.shownCam??null});console.log('BUILT',entry.id,entry.bytes,'bytes',entry.nodes,'geometries',entry.materials,'materials','persistent',persistent.map(o=>o.name));
+  if(def.segId==='W6'){
+   // Execute the original closure, excluding only its GPU reflection pass.
+   const samples=[];group.visible=false;
+   for(const x of [390,405,411.5,418,ox+24.15,ox+32,ox+44,ox+56,ox+64,ox+72,ox+84,ox+96,ox+108,640,685]){
+    built.update({dt:0,player:{...game.player,x}});
+    const values={};group.traverse(o=>{
+     if(['W6_WATER','W6_WATER_DEPTH','W6_GATE_FOG','W6_FAR_VEIL','W6_HORIZON'].includes(o.name))values[o.name]={y:o.position.y,visible:o.visible,...Object.fromEntries(Object.entries(o.material.uniforms??{}).filter(([k])=>['uFarCut','uAmt'].includes(k)).map(([k,u])=>[k,u.value]))};
+    });samples.push({x,values});
+   }
+   fs.writeFileSync(path.join(root,'go_home_mobile/test/fixtures/original_lake_scenery.json'),JSON.stringify(samples));
+  }
   for(const r of roots)scene.remove(r);
  }catch(error){console.error('BUILD FAILED',def.segId,error.stack,error.cause);}
 }
 
 const sky=look.EV(shared);sky.mesh.name='SKY';sky.mat.uniforms.uCloudAmt.value=.7;
+const particles=new look.li(shared,()=>0,[],[]).points;
 const far=look.Al({...shared,uFarK:{value:1}},{x0:0,x1:L.length,origin:id=>{const s=L.segs.find(s=>s.def.id===id);return s?{ox:s.ox,oy:s.oy}:null;}});
 await Promise.all(['owl_FarMount','owl_FarRidge','ending_peak_tall'].map(name=>look.Co(name))).then(([farMount,farRidge,peak])=>far.setModels({farMount,farRidge,peak}));
 far.update(1,13);
 for(const entry of look.gl)entry.o.userData.farVisibility={from:entry.from,until:entry.until};
-const common=writer.write('_global',[sky.mesh,far.group],{farConfig:{nightFrom:look.vl,seaFrom:look.yl,dawn:look.El,peak:look.kl,sea:look.ol,endingOx:L.segs.find(s=>s.def.id==='route-ending').ox},shared:Object.fromEntries(Object.entries(shared).map(([k,v])=>[k,writer.uniform(v.value)])),heightX0:surface.x0,heightStep:.1,heights:Array.from({length:Math.ceil((surface.x1-surface.x0)/.1)+1},(_,i)=>surface.smooth(surface.x0+i*.1))});
+const common=writer.write('_global',[sky.mesh,far.group,...persistentRoots,particles],{farConfig:{nightFrom:look.vl,seaFrom:look.yl,dawn:look.El,peak:look.kl,sea:look.ol,endingOx:L.segs.find(s=>s.def.id==='route-ending').ox},shared:Object.fromEntries(Object.entries(shared).map(([k,v])=>[k,writer.uniform(v.value)])),heightX0:surface.x0,heightStep:.1,heights:Array.from({length:Math.ceil((surface.x1-surface.x0)/.1)+1},(_,i)=>surface.smooth(surface.x0+i*.1))});
 console.log('BUILT common',common);
 writer.finish();fs.writeFileSync(path.join(writer.output,'manifest.json'),JSON.stringify(manifests));

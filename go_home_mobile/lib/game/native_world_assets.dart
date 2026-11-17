@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:three_js/three_js.dart' as three;
+
+import 'native_scene_culling.dart';
 
 /// Loads source-generated scene data. All rendering and updates run in Dart.
 class NativeWorldAssets {
@@ -189,6 +192,15 @@ class NativeWorldAssets {
     }
 
     final geometries = <String, three.BufferGeometry>{};
+    three.Vector3 point(List p) => three.Vector3(
+      (p[0] as num).toDouble(),
+      (p[1] as num).toDouble(),
+      (p[2] as num).toDouble(),
+    );
+    three.BoundingSphere sphere(Map data) => three.BoundingSphere(
+      point(data['center']),
+      (data['radius'] as num).toDouble(),
+    );
     for (final entry in (json['geometries'] as Map<String, dynamic>).entries) {
       final data = entry.value;
       final g = data['instanced'] == true
@@ -207,6 +219,9 @@ class NativeWorldAssets {
       final range = data['drawRange'];
       if (range['count'] != null) {
         g.setDrawRange(range['start'], range['count']);
+      }
+      if (data['boundingSphere'] != null) {
+        g.boundingSphere = sphere(data['boundingSphere']);
       }
       geometries[entry.key] = g;
       chunk.geometries.add(g);
@@ -303,6 +318,16 @@ class NativeWorldAssets {
       o.visible = data['visible'];
       o.renderOrder = (data['order'] as num).toInt();
       o.frustumCulled = data['culled'];
+      o.layers.mask = (data['layers'] as num?)?.toInt() ?? 1;
+      if (o is three.InstancedMesh && (o.count ?? 0) > 0) {
+        o.boundingSphere = data['boundingSphere'] != null
+            ? sphere(data['boundingSphere'])
+            : null;
+        if (o.frustumCulled && o.layers.isEnabled(0)) {
+          if (o.boundingSphere == null) o.computeBoundingSphere();
+          chunk.culling.add(o, o.boundingSphere!);
+        }
+      }
       o.matrix.fromNativeArray(
         (data['matrix'] as List).cast<num>().map((n) => n.toDouble()).toList(),
       );
@@ -313,6 +338,13 @@ class NativeWorldAssets {
         o.userData['sourceRenderOrder'] = data['order'];
       }
       chunk.nodes.add(o);
+      final box = data['visibilityBox'];
+      if (box != null) {
+        chunk.visibilityBoxes.add((
+          node: o,
+          box: three.BoundingBox(point(box['min']), point(box['max'])),
+        ));
+      }
       for (final child in data['children']) {
         o.add(node(child));
       }
@@ -356,6 +388,19 @@ class NativeWorldChunk {
   final List<three.Object3D> nodes = [];
   final List<three.BufferGeometry> geometries = [];
   final List<three.Material> materials = [];
+  final culling = NativeSceneCulling();
+  final visibilityBoxes = <({three.Object3D node, three.BoundingBox box})>[];
+
+  bool intersectsView(three.Frustum frustum) => visibilityBoxes.any((entry) {
+    for (
+      three.Object3D? node = entry.node;
+      node != null && node != root;
+      node = node.parent
+    ) {
+      if (!node.visible) return false;
+    }
+    return frustum.intersectsBox(entry.box);
+  });
 
   Map<String, dynamic> palette(double x) {
     final values = data['palette'] as List;
@@ -376,7 +421,7 @@ class NativeWorldChunk {
     };
   }
 
-  void updateMist(double cameraX, double groundY) {
+  void updateMist(double cameraX, double groundY, double cameraZ) {
     for (final o in nodes) {
       final spec = o.userData['spec'];
       if (spec == null || !o.name.startsWith('MIST_')) continue;
@@ -388,6 +433,61 @@ class NativeWorldChunk {
       o.updateMatrix();
       if (o is three.Mesh && o.material is three.ShaderMaterial) {
         o.material!.uniforms['uBase']['value'] = base;
+        final zone = o.material!.uniforms['uZone']['value'] as three.Vector4;
+        final extent = .46 * (cameraZ - o.position.z);
+        o.visible = cameraX + extent > zone.x && cameraX - extent < zone.w;
+      }
+    }
+  }
+
+  void updateBeams(double cameraX, double rays, three.Vector3 light) {
+    final specs = data['beams'] as List? ?? const [];
+    var index = 0;
+    for (final node in nodes) {
+      if (!node.name.startsWith('BEAM_') || node is! three.Mesh) continue;
+      final strength = rays * (specs[index++][2] as num) * .16;
+      node.material!.uniforms['uStrength']['value'] = strength;
+      node.visible = strength > .002 && (node.position.x - cameraX).abs() < 40;
+      node.rotation.z = math.atan2(-light.x, math.max(light.y, .15)) * .8;
+      node.updateMatrix();
+    }
+  }
+
+  /// _S.update: the lake's depth mask must sink with its far-water fade.
+  /// It extends well beyond W6 and otherwise cuts holes in later mountains.
+  void updateLake(double playerX) {
+    if (id != 'W6') return;
+    double smooth(double a, double b, double x) {
+      final t = ((x - a) / (b - a)).clamp(0.0, 1.0);
+      return t * t * (3 - 2 * t);
+    }
+
+    final x = playerX - (data['ox'] as num);
+    final cut = math.max(smooth(56, 72, x), 1 - smooth(405, 418, playerX));
+    for (final node in nodes) {
+      if (node.name == 'W6_WATER_DEPTH') {
+        final base = node.userData.putIfAbsent(
+          'lakeDepthY',
+          () => node.position.y,
+        ) as double;
+        node.position.y = base - 40 * cut;
+        node.updateMatrix();
+      }
+      if (node is! three.Mesh) continue;
+      final u = node.material!.uniforms;
+      if (node.name == 'W6_WATER') u['uFarCut']['value'] = cut;
+      if (node.name == 'W6_GATE_FOG' || node.name == 'W6_FAR_VEIL') {
+        final amount = node.name == 'W6_GATE_FOG'
+            ? smooth(24.15, 40.15, x) * (1 - smooth(52.15, 76.15, x)) * .98
+            : smooth(25.15, 40.15, x) * (1 - smooth(50, 84, x));
+        u['uAmt']['value'] = amount;
+        node.visible = amount > .002;
+      }
+      if (node.name == 'W6_HORIZON') {
+        u['uAmt']['value'] =
+            smooth(44, 70, x) *
+            (1 + 2.6 * smooth(70, 96, x)) *
+            (1 - smooth(84, 108, x));
       }
     }
   }

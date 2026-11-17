@@ -48,7 +48,8 @@ export class NativeSceneWriter {
   const geometry=g=>{
    if(geometryIds.has(g))return geometryIds.get(g);
    const gid=`g${geometryIds.size}`;geometryIds.set(g,gid);
-   geometries[gid]={attributes:Object.fromEntries(Object.entries(g.attributes).map(([k,v])=>[k,attr(v)])),index:g.index?attr(g.index,true):null,groups:g.groups,drawRange:{start:g.drawRange.start,count:Number.isFinite(g.drawRange.count)?g.drawRange.count:null},instanced:!!g.isInstancedBufferGeometry,instanceCount:Number.isFinite(g.instanceCount)?g.instanceCount:null};return gid;
+   if(!g.boundingSphere&&g.attributes.position)g.computeBoundingSphere();
+   geometries[gid]={attributes:Object.fromEntries(Object.entries(g.attributes).map(([k,v])=>[k,attr(v)])),index:g.index?attr(g.index,true):null,groups:g.groups,drawRange:{start:g.drawRange.start,count:Number.isFinite(g.drawRange.count)?g.drawRange.count:null},instanced:!!g.isInstancedBufferGeometry,instanceCount:Number.isFinite(g.instanceCount)?g.instanceCount:null,boundingSphere:g.boundingSphere?{center:g.boundingSphere.center.toArray(),radius:g.boundingSphere.radius}:null};return gid;
   };
   const material=m=>{
    if(materialIds.has(m))return materialIds.get(m);
@@ -61,14 +62,14 @@ export class NativeSceneWriter {
   };
   const node=o=>{
    if(o.matrixAutoUpdate)o.updateMatrix();
-   const out={type:o.type,name:o.name,visible:o.visible,matrix:o.matrix.toArray(),order:o.renderOrder,culled:o.frustumCulled,userData:{...(o.userData.spec?{spec:o.userData.spec}:{}),...(o.userData.farVisibility?{farVisibility:o.userData.farVisibility}:{})}};
+   const out={type:o.type,name:o.name,visible:o.visible,matrix:o.matrix.toArray(),order:o.renderOrder,culled:o.frustumCulled,layers:o.layers.mask,visibilityBox:o.userData.portVisibilityBox??null,userData:{...(o.userData.spec?{spec:o.userData.spec}:{}),...(o.userData.farVisibility?{farVisibility:o.userData.farVisibility}:{})}};
    if(o.geometry)out.geometry=geometry(o.geometry);
    if(o.material)out.material=Array.isArray(o.material)?o.material.map(material):material(o.material);
-   if(o.instanceMatrix){out.instances=attr(o.instanceMatrix);out.count=o.count;if(o.instanceColor)out.instanceColor=attr(o.instanceColor);}
+   if(o.instanceMatrix){out.instances=attr(o.instanceMatrix);out.count=o.count;if(o.instanceColor)out.instanceColor=attr(o.instanceColor);if(!o.boundingSphere&&o.count>0)o.computeBoundingSphere();if(o.boundingSphere)out.boundingSphere={center:o.boundingSphere.center.toArray(),radius:o.boundingSphere.radius};}
    out.children=o.children.map(node);return out;
   };
   const nodes=roots.map(node);
-  const result={version:2,...extra,geometries,materials,nodes};
+  const result={version:3,...extra,geometries,materials,nodes};
   fs.writeFileSync(path.join(this.output,id+'.json'),JSON.stringify(result));
   fs.writeFileSync(path.join(this.output,id+'.bin'),Buffer.concat(buffers));
   return {id,bytes:offset,nodes:geometryIds.size,materials:materialIds.size};
