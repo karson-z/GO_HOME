@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_asset_decode.dart';
 
@@ -21,9 +21,9 @@ class NativeArtistFirefly {
   );
   final NativePuppetRenderer rig;
   final OriginalArtistFirefly motion;
-  final three.DataTexture texture;
-  final three.Sprite halo, core;
-  final root = three.Group()..name = 'film-firefly';
+  final sd.PixelTexture texture;
+  final sd.BillboardNode halo, core;
+  final root = sd.GroupNode()..name = 'film-firefly';
   final Map<String, ui.Path> _paths = {};
   int uploads = 0;
   String? rasterError;
@@ -37,10 +37,10 @@ class NativeArtistFirefly {
       'assets/characters/artist-firefly.json',
     );
     final texture =
-        three.DataTexture(Uint8List(width * height * 4), width, height)
-          ..colorSpace = three.NoColorSpace
-          ..minFilter = three.LinearFilter
-          ..magFilter = three.LinearFilter
+        sd.PixelTexture(Uint8List(width * height * 4), width, height)
+          ..colorSpace = sd.NoColorSpace
+          ..minFilter = sd.LinearFilter
+          ..magFilter = sd.LinearFilter
           ..generateMipmaps = false;
     final rig = await NativePuppetRenderer.load(
       'artist-firefly',
@@ -49,21 +49,21 @@ class NativeArtistFirefly {
       dataOverride: data,
       textureOverride: texture,
     );
-    (rig.material.uniforms['uAccent']['value'] as three.Color).setFrom(
-      three.Color.fromHex32(0xffd678).toLinear(),
+    (rig.material.uniforms['uAccent']['value'] as sd.Color).setFrom(
+      sd.Color.fromHex32(0xffd678).toLinear(),
     );
     rig.number('uSpark', 1);
     rig.number('uEdgeK', 1);
     rig.quad.renderOrder = 27;
-    Future<three.Sprite> sprite(String name, double order) async {
+    Future<sd.BillboardNode> sprite(String name, double order) async {
       final map = await loadNativeTexture(
         'assets/characters/artist-firefly-$name.png',
         flipY: true,
       );
-      final s = three.Sprite(
-        three.SpriteMaterial.fromMap({
+      final s = sd.BillboardNode(
+        sd.BillboardData.fromMap({
           'map': map,
-          'blending': three.NormalBlending,
+          'blending': sd.NormalBlending,
           'transparent': true,
           'depthWrite': false,
           'depthTest': false,
@@ -251,7 +251,7 @@ class NativeArtistFirefly {
           data.lengthInBytes,
         );
         final pixels = Uint8List(source.length), stride = width * 4;
-        // CanvasTexture's flipY is emulated in bytes for GLES DataTexture.
+        // Preserve the authored canvas texture orientation in the pixel data.
         for (var row = 0; row < height; row++) {
           pixels.setRange(
             row * stride,
@@ -269,10 +269,6 @@ class NativeArtistFirefly {
     } finally {
       _busy = false;
     }
-  }
-
-  void renderParts(three.Renderer renderer) {
-    if (root.visible) rig.renderParts(renderer);
   }
 
   void dispose() {

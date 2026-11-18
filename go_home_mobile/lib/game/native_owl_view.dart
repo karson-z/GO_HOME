@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_world_assets.dart';
 import 'original_owl.dart';
@@ -32,12 +32,12 @@ class _NativeBranch {
         ];
       }
     }
-    final mat = mesh.material as three.ShaderMaterial;
+    final mat = mesh.material as sd.ShaderData;
     rim = (mat.uniforms['uRim']['value'] as num).toDouble();
   }
-  final three.Mesh mesh;
-  final three.InstancedMesh? leaves;
-  final three.Object3D? lichen;
+  final sd.DrawMesh mesh;
+  final sd.InstanceMesh? leaves;
+  final sd.SceneNode? lichen;
   final OwlBranch definition;
   late Float32List rest, drop;
   late double rim;
@@ -68,15 +68,16 @@ class _NativeBranch {
       lichen!.rotation.z = math.sin(time * 1.1 + definition.degree) * .05;
       lichen!.updateMatrix();
       for (final halo in lichen!.children) {
-        if (halo is three.Sprite) {
+        if (halo is sd.BillboardNode) {
           halo.material?.opacity = flash * .6;
           halo.scale.setScalar(1 + flash * .9);
           halo.updateMatrix();
         }
       }
     }
-    (mesh.material as three.ShaderMaterial).uniforms['uRim']['value'] =
-        state.solid ? math.max(2.0, rim) : rim;
+    (mesh.material as sd.ShaderData).uniforms['uRim']['value'] = state.solid
+        ? math.max(2.0, rim)
+        : rim;
   }
 }
 
@@ -85,14 +86,16 @@ class NativeOwlView {
   NativeOwlView(NativeWorldChunk chunk) {
     final definitions = OriginalOwl().branches;
     for (final def in definitions) {
-      final mesh = chunk.nodes.whereType<three.Mesh>().firstWhere(
+      final mesh = chunk.nodes.whereType<sd.DrawMesh>().firstWhere(
         (n) => n.name == 'OWL_BRANCH_${def.id}',
       );
       final leaves = chunk.nodes
-          .whereType<three.InstancedMesh>()
+          .whereType<sd.InstanceMesh>()
           .where((n) => n.name == 'OWL_TWIG_LEAF_${def.id}')
           .firstOrNull;
-      final lichen = mesh.parent?.children.whereType<three.Group>().firstOrNull;
+      final lichen = mesh.parent?.children
+          .whereType<sd.GroupNode>()
+          .firstOrNull;
       _branches[def.id] = _NativeBranch(mesh, leaves, lichen, def);
     }
   }

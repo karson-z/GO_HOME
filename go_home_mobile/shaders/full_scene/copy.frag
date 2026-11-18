@@ -1,0 +1,2 @@
+#version 450
+layout(location=0) in vec2 v_uv;layout(location=0) out vec4 color;uniform sampler2D input_color;uniform sampler2D source_color;layout(set=0,binding=3) uniform CopyInfo {vec4 info;} copy_info;void main(){color=texture(source_color,v_uv)+copy_info.info.x*texture(input_color,v_uv);}

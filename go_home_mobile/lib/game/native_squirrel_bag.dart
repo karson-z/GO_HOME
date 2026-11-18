@@ -1,26 +1,26 @@
 import 'dart:typed_data';
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_puppet_renderer.dart';
 
 /// Original Fm/flatten squirrel satchel, attached to the solved body anchor.
 class NativeSquirrelBag {
-  final mount = three.Group()..name = 'squirrel-body-mount';
-  late three.Object3D bag, body, flap;
-  final List<three.BufferGeometry> geometries = [];
-  final List<three.ShaderMaterial> materials = [];
+  final mount = sd.GroupNode()..name = 'squirrel-body-mount';
+  late sd.SceneNode bag, body, flap;
+  final List<sd.GeometryData> geometries = [];
+  final List<sd.ShaderData> materials = [];
   static NativeSquirrelBag build(
     NativePuppetRenderer rig,
     Map<String, dynamic> data,
   ) {
     final p = NativeSquirrelBag();
     for (final g in data['geometries']) {
-      final geometry = three.BufferGeometry();
+      final geometry = sd.GeometryData();
       for (final entry in (g['attributes'] as Map).entries) {
         geometry.setAttributeFromString(
           entry.key,
-          three.Float32BufferAttribute(
+          sd.FloatAttribute(
             Float32List.fromList(
               (entry.value['values'] as List)
                   .map((n) => (n as num).toDouble())
@@ -32,7 +32,7 @@ class NativeSquirrelBag {
       }
       if (g['index'] != null) {
         geometry.setIndex(
-          three.Uint32BufferAttribute(
+          sd.IndexAttribute(
             Uint32List.fromList((g['index'] as List).cast<int>()),
             1,
           ),
@@ -42,13 +42,13 @@ class NativeSquirrelBag {
     }
     for (final m in data['materials']) {
       p.materials.add(
-        three.ShaderMaterial.fromMap({
+        sd.ShaderData.fromMap({
           'vertexShader': m['vertex'],
           'fragmentShader': m['fragment'],
           'uniforms': (m['uniforms'] as Map).map<String, dynamic>(
             (k, v) => MapEntry(k as String, {
               'value': v is Map && v['color'] != null
-                  ? (three.Color()..setRGB(
+                  ? (sd.Color()..setRGB(
                       (v['color'][0] as num).toDouble(),
                       (v['color'][1] as num).toDouble(),
                       (v['color'][2] as num).toDouble(),
@@ -63,10 +63,13 @@ class NativeSquirrelBag {
         }),
       );
     }
-    three.Object3D build(Map n) {
-      final three.Object3D o = n['geometry'] == null
-          ? three.Group()
-          : three.Mesh(p.geometries[n['geometry']], p.materials[n['material']]);
+    sd.SceneNode build(Map n) {
+      final sd.SceneNode o = n['geometry'] == null
+          ? sd.GroupNode()
+          : sd.DrawMesh(
+              p.geometries[n['geometry']],
+              p.materials[n['material']],
+            );
       o.name = n['name'];
       o.visible = n['visible'];
       o.renderOrder = n['order'];
@@ -114,7 +117,7 @@ class NativeSquirrelBag {
     final joint = rig.parts[anchor['parent']]!.joint;
     mount.matrix.setFrom(joint.matrixWorld);
     mount.matrix.multiply(
-      three.Matrix4.identity()..makeTranslation(
+      sd.Matrix4.identity()..makeTranslation(
         (anchor['at'][0] as num).toDouble(),
         (anchor['at'][1] as num).toDouble(),
         0,

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/scheduler.dart';
+
 /// Construction must share the main isolate with the renderer. Yield to the
 /// event queue between short batches; awaiting already-completed Futures only
 /// yields to microtasks and still starves frame/touch events.
@@ -15,7 +17,13 @@ class NativeLoadBudget {
     if (elapsed < slice.inMicroseconds) return;
     if (elapsed > maxWorkMicros) maxWorkMicros = elapsed;
     yields++;
-    await Future<void>.delayed(Duration.zero);
+    // Zero-delay timers can run several more load slices before the next
+    // vsync. Let an already scheduled frame finish before resuming work.
+    if (SchedulerBinding.instance.hasScheduledFrame) {
+      await SchedulerBinding.instance.endOfFrame;
+    } else {
+      await Future<void>.delayed(Duration.zero);
+    }
     _clock.reset();
   }
 

@@ -1,0 +1,2 @@
+#version 450
+layout(location=0) in vec2 vUv;layout(location=0) out vec4 color;uniform sampler2D base_color;uniform sampler2D bloom_color;void main(){color=texture(base_color,vUv)+texture(bloom_color,vUv);}

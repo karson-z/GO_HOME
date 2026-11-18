@@ -28,10 +28,6 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        ndk {
-            // flutter_angle ships its native renderer for ARM64 only.
-            abiFilters += listOf("arm64-v8a")
-        }
     }
 
     buildTypes {

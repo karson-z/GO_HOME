@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_asset_decode.dart';
 
@@ -8,28 +8,28 @@ import 'native_asset_decode.dart';
 class CharacterRig {
   CharacterRig._(this.name, this.texture);
   final String name;
-  final three.Texture texture;
-  final three.Group root = three.Group();
-  final Map<String, three.Group> joints = {};
+  final sd.TextureData texture;
+  final sd.GroupNode root = sd.GroupNode();
+  final Map<String, sd.GroupNode> joints = {};
   final Map<String, double> rest = {};
-  final List<three.Mesh> meshes = [];
-  final List<three.BufferGeometry> geometries = [];
-  final List<three.Material> materials = [];
+  final List<sd.DrawMesh> meshes = [];
+  final List<sd.GeometryData> geometries = [];
+  final List<sd.MaterialData> materials = [];
   static Future<CharacterRig> load(String name) async {
     final data = await decodeNativeJsonAsset('assets/characters/$name.json');
-    // Native GLES has no WebGL UNPACK_FLIP_Y. Flip decoded image pixels so the
+    // Flip decoded image rows so authored atlas UVs preserve the
     // source atlas UVs retain the browser's bottom-left coordinate convention.
     final texture = await loadNativeTexture(
       'assets/characters/$name.png',
       flipY: true,
     );
-    texture.colorSpace = three.NoColorSpace;
+    texture.colorSpace = sd.NoColorSpace;
     final rig = CharacterRig._(name, texture);
     final parts = (data['parts'] as List).cast<Map<String, dynamic>>();
     final frames = <String, Map<String, dynamic>>{};
     for (final p in parts) {
       final id = p['id'] as String;
-      rig.joints[id] = three.Group();
+      rig.joints[id] = sd.GroupNode();
       rig.rest[id] = (p['rest'] as num? ?? 0).toDouble();
       if (p['frames'] != null) {
         final options = (p['frames'] as Map)
@@ -91,18 +91,18 @@ class CharacterRig {
       if (uv == null || size == null) continue;
       final pivot = (frame['pivot'] ?? p['pivot'] ?? [.5, .5]) as List;
       final w = (size[0] as num).toDouble(), h = (size[1] as num).toDouble();
-      final geometry = three.PlaneGeometry(w, h);
-      final uvs = geometry.getAttribute(three.Attribute.uv);
+      final geometry = sd.PlaneData(w, h);
+      final uvs = geometry.getAttribute(sd.Attribute.uv);
       for (var i = 0; i < uvs.count; i++) {
-        final u = uvs.getX(i)!, v = uvs.getY(i)!;
+        final u = uvs.getX(i), v = uvs.getY(i);
         uvs.setXY(i, uv[0] + u * (uv[2] - uv[0]), uv[1] + v * (uv[3] - uv[1]));
       }
-      final material = three.ShaderMaterial.fromMap({
+      final material = sd.ShaderData.fromMap({
         'uniforms': {
           'uMap': {'value': texture},
-          'uBody': {'value': three.Color.fromHex32(0xb2aa91).toLinear()},
+          'uBody': {'value': sd.Color.fromHex32(0xb2aa91).toLinear()},
           'uAccent': {
-            'value': three.Color.fromHex32(name == 'boy' ? 0xe8c780 : 0xb6a587)
+            'value': sd.Color.fromHex32(name == 'boy' ? 0xe8c780 : 0xb6a587)
                 .toLinear(),
           },
           'uWarm': {'value': name == 'boy' || name == 'bear' ? .65 : .25},
@@ -111,9 +111,9 @@ class CharacterRig {
         'fragmentShader': _fragmentShader,
         'transparent': true,
         'depthWrite': false,
-        'side': three.DoubleSide,
+        'side': sd.DoubleSide,
       });
-      final mesh = three.Mesh(geometry, material);
+      final mesh = sd.DrawMesh(geometry, material);
       mesh.position.setValues(
         (.5 - pivot[0]) * w,
         (.5 - pivot[1]) * h,
@@ -159,7 +159,7 @@ class CharacterRig {
     }
   ''';
   void setPeriod(String period) {
-    final c = three.Color.fromHex32(
+    final c = sd.Color.fromHex32(
       period == 'night'
           ? 0xa4b5c8
           : period == 'dawn'
@@ -167,7 +167,7 @@ class CharacterRig {
           : 0xb2aa91,
     ).toLinear();
     for (final mat in materials) {
-      (mat as three.ShaderMaterial).uniforms['uBody']['value'] = c;
+      (mat as sd.ShaderData).uniforms['uBody']['value'] = c;
     }
   }
 

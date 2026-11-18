@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_asset_decode.dart';
 import 'original_puppet_rig.dart';
@@ -9,8 +9,8 @@ class PuppetPart {
   PuppetPart(this.data, this.frames, this.joint);
   final Map<String, dynamic> data;
   final Map<String, Map<String, dynamic>> frames;
-  final three.Group joint;
-  final Map<String, three.Mesh> meshes = {};
+  final sd.GroupNode joint;
+  final Map<String, sd.DrawMesh> meshes = {};
   late String frame;
 }
 
@@ -18,24 +18,24 @@ class PuppetPart {
 /// and parent/child pivot overrides retained. It uses no browser runtime.
 class NativePuppetRenderer {
   static Future<Map<String, dynamic>>? _shaders;
-  final root = three.Group(),
-      flip = three.Group(),
-      stage = three.Scene(),
-      poseRoot = three.Group();
+  final root = sd.GroupNode(),
+      flip = sd.GroupNode(),
+      stage = sd.WorldScene(),
+      poseRoot = sd.GroupNode();
   final Map<String, PuppetPart> parts = {};
-  late final three.Texture texture;
-  late final three.RenderTarget target;
-  late final three.OrthographicCamera camera;
-  late final three.ShaderMaterial partMaterial, material;
-  late final three.Mesh quad;
-  final List<three.BufferGeometry> geometries = [];
+  late final sd.TextureData texture;
+  late final sd.RenderSurface target;
+  late final sd.OrthographicLens camera;
+  late final sd.ShaderData partMaterial, material;
+  late final sd.DrawMesh quad;
+  final List<sd.GeometryData> geometries = [];
   late Map<String, dynamic> data;
   static Future<NativePuppetRenderer> load(
     String name,
     Map<String, dynamic> shared, {
     double ppm = 280,
     Map<String, dynamic>? dataOverride,
-    three.Texture? textureOverride,
+    sd.TextureData? textureOverride,
   }) async {
     final p = NativePuppetRenderer();
     p.data =
@@ -48,13 +48,13 @@ class NativePuppetRenderer {
         textureOverride ??
         await loadNativeTexture('assets/characters/$name.png', flipY: true);
     p.texture = tex
-      ..colorSpace = three.NoColorSpace
+      ..colorSpace = sd.NoColorSpace
       ..minFilter = textureOverride == null
-          ? three.LinearMipmapLinearFilter
-          : three.LinearFilter
-      ..magFilter = three.LinearFilter
+          ? sd.LinearMipmapLinearFilter
+          : sd.LinearFilter
+      ..magFilter = sd.LinearFilter
       ..anisotropy = textureOverride == null ? 4 : 1;
-    p.partMaterial = three.ShaderMaterial.fromMap({
+    p.partMaterial = sd.ShaderData.fromMap({
       'uniforms': {
         'uMap': {'value': tex},
       },
@@ -71,7 +71,7 @@ class NativePuppetRenderer {
     };
     PuppetPart build(String id) {
       if (p.parts.containsKey(id)) return p.parts[id]!;
-      final d = definitions[id]!, joint = three.Group()..name = 'puppet:$id';
+      final d = definitions[id]!, joint = sd.GroupNode()..name = 'puppet:$id';
       final parent = d['parent'] as String?;
       (parent == null ? p.poseRoot : build(parent).joint).add(joint);
       final frames = d['frames'] != null
@@ -89,9 +89,9 @@ class NativePuppetRenderer {
             pivot = f['pivot'] as List,
             uv = f['uv'] as List;
         final w = (size[0] as num).toDouble(), h = (size[1] as num).toDouble();
-        final g = three.PlaneGeometry(w, h)
+        final g = sd.PlaneData(w, h)
           ..translate(w * (.5 - pivot[0]), h * (.5 - pivot[1]), 0);
-        final attr = g.getAttribute(three.Attribute.uv);
+        final attr = g.getAttribute(sd.Attribute.uv);
         for (var i = 0; i < attr.count; i++) {
           attr.setXY(
             i,
@@ -100,7 +100,7 @@ class NativePuppetRenderer {
           );
         }
         attr.needsUpdate = true;
-        final mesh = three.Mesh(g, p.partMaterial)
+        final mesh = sd.DrawMesh(g, p.partMaterial)
           ..name = 'puppet-part:$id:${e.key}'
           ..renderOrder = (d['layer'] as num? ?? 50).toInt()
           ..frustumCulled = false
@@ -124,15 +124,15 @@ class NativePuppetRenderer {
       width = (width / factor).ceil();
       height = (height / factor).ceil();
     }
-    p.camera = three.OrthographicCamera(x0, x1, y1, y0, -10, 10);
-    p.target = three.RenderTarget(
+    p.camera = sd.OrthographicLens(x0, x1, y1, y0, -10, 10);
+    p.target = sd.RenderSurface(
       width,
       height,
-      three.RenderTargetOptions.create(
-        minFilter: three.LinearFilter,
-        magFilter: three.LinearFilter,
+      sd.SurfaceOptions.create(
+        minFilter: sd.LinearFilter,
+        magFilter: sd.LinearFilter,
         depthBuffer: false,
-        colorSpace: three.NoColorSpace,
+        colorSpace: sd.NoColorSpace,
       ),
     );
     final uniforms = <String, dynamic>{
@@ -141,7 +141,7 @@ class NativePuppetRenderer {
       'uLightDir': shared['uLightDir'],
       'uLayerCol': shared['uLayerCol'],
       'uAccent': {
-        'value': three.Color.fromHex32(
+        'value': sd.Color.fromHex32(
           name == 'hedgehog'
               ? 0x3f7fc4
               : name == 'squirrel'
@@ -151,7 +151,7 @@ class NativePuppetRenderer {
               : 0x8a7a70,
         ).toLinear(),
       },
-      'uWetCol': {'value': three.Color.fromHex32(0)},
+      'uWetCol': {'value': sd.Color.fromHex32(0)},
     };
     for (final e in {
       'uFootY': -1e5,
@@ -181,7 +181,7 @@ class NativePuppetRenderer {
     }.entries) {
       uniforms[e.key] = {'value': e.value};
     }
-    p.material = three.ShaderMaterial.fromMap({
+    p.material = sd.ShaderData.fromMap({
       'uniforms': uniforms,
       'vertexShader': shaders['core_Pg'],
       'fragmentShader': shaders['core_Fg'],
@@ -189,9 +189,9 @@ class NativePuppetRenderer {
       'depthWrite': false,
       'toneMapped': false,
     });
-    final geometry = three.PlaneGeometry(x1 - x0, y1 - y0)
+    final geometry = sd.PlaneData(x1 - x0, y1 - y0)
       ..translate((x0 + x1) / 2, (y0 + y1) / 2, 0);
-    p.quad = three.Mesh(geometry, p.material)
+    p.quad = sd.DrawMesh(geometry, p.material)
       ..name = 'puppet-quad:$name'
       ..renderOrder = 24
       ..frustumCulled = false;
@@ -273,13 +273,13 @@ class NativePuppetRenderer {
     }
   }
 
-  three.Vector3 anchor(String id) {
+  sd.Vector3 anchor(String id) {
     final a = data['anchors']?[id];
-    if (a == null) return three.Vector3();
+    if (a == null) return sd.Vector3();
     stage.updateMatrixWorld(true);
     final parent = parts[a['parent']];
-    if (parent == null) return three.Vector3();
-    return three.Vector3(
+    if (parent == null) return sd.Vector3();
+    return sd.Vector3(
         (a['at'][0] as num).toDouble(),
         (a['at'][1] as num).toDouble(),
         0,
@@ -332,24 +332,6 @@ class NativePuppetRenderer {
       }
     }
     number('uFloor', floor);
-  }
-
-  void renderParts(three.Renderer renderer) {
-    for (three.Object3D? node = root; node != null; node = node.parent) {
-      if (!node.visible) return;
-    }
-    final previous = renderer.getRenderTarget(),
-        alpha = renderer.getClearAlpha();
-    final color = renderer.getClearColor(three.Color()),
-        autoClear = renderer.autoClear;
-    renderer.setRenderTarget(target);
-    renderer.setClearColor(three.Color.fromHex32(0), 0);
-    renderer.clear(true, false, false);
-    renderer.autoClear = false;
-    renderer.render(stage, camera);
-    renderer.autoClear = autoClear;
-    renderer.setClearColor(color, alpha);
-    renderer.setRenderTarget(previous);
   }
 
   void dispose() {

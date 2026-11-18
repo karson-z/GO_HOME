@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_world_assets.dart';
 import 'native_puppet_renderer.dart';
@@ -22,9 +22,9 @@ class NativeWoodpeckerView {
       if (n.name == 'WP_CRACK') crack = n;
     }
   }
-  three.Object3D? top, crack;
-  three.Vector3? origin;
-  final Map<int, three.Object3D> baseStages = {}, topStages = {};
+  sd.SceneNode? top, crack;
+  sd.Vector3? origin;
+  final Map<int, sd.SceneNode> baseStages = {}, topStages = {};
   void update(
     OriginalWoodpecker? state,
     NativePuppetRenderer? rig,

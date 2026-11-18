@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_puppet_renderer.dart';
 import 'native_asset_decode.dart';
@@ -9,10 +9,10 @@ import 'original_firefly_motion.dart';
 
 class NativeFireflyView {
   final List<NativePuppetRenderer> rigs = [];
-  late three.Texture lampTexture, haloTexture;
-  final lamps = <three.Sprite>[],
-      cores = <three.Sprite>[],
-      halos = <three.Sprite>[];
+  late sd.TextureData lampTexture, haloTexture;
+  final lamps = <sd.BillboardNode>[],
+      cores = <sd.BillboardNode>[],
+      halos = <sd.BillboardNode>[];
   final motions = List.generate(7, (_) => OriginalFireflyMotion());
   final previous = List<double>.filled(7, 0);
   double? lastTime;
@@ -27,13 +27,13 @@ class NativeFireflyView {
     );
     for (var i = 0; i < 7; i++) {
       view.rigs.add(await NativePuppetRenderer.load('firefly', shared));
-      three.Sprite sprite(
-        three.Texture texture,
+      sd.BillboardNode sprite(
+        sd.TextureData texture,
         int order,
-        three.Color color, {
+        sd.Color color, {
         bool additive = false,
       }) {
-        final mat = three.SpriteMaterial.fromMap({
+        final mat = sd.BillboardData.fromMap({
           'map': texture,
           'color': color,
           'transparent': true,
@@ -41,22 +41,22 @@ class NativeFireflyView {
           'depthWrite': false,
           'fog': false,
           'sizeAttenuation': true,
-          'blending': additive ? three.AdditiveBlending : three.CustomBlending,
+          'blending': additive ? sd.AdditiveBlending : sd.CustomBlending,
           if (!additive) ...{
-            'blendSrc': three.SrcAlphaFactor,
-            'blendDst': three.OneFactor,
-            'blendSrcAlpha': three.ZeroFactor,
-            'blendDstAlpha': three.OneFactor,
+            'blendSrc': sd.SrcAlphaFactor,
+            'blendDst': sd.OneFactor,
+            'blendSrcAlpha': sd.ZeroFactor,
+            'blendDstAlpha': sd.OneFactor,
           },
         });
-        final result = three.Sprite(mat)
+        final result = sd.BillboardNode(mat)
           ..renderOrder = order
           ..visible = false;
         view.rigs.last.root.add(result);
         return result;
       }
 
-      final gold = three.Color.fromHex32(0xffd9a0).toLinear();
+      final gold = sd.Color.fromHex32(0xffd9a0).toLinear();
       view.lamps.add(
         sprite(view.lampTexture, 25, gold.clone(), additive: true),
       );
@@ -66,7 +66,7 @@ class NativeFireflyView {
           view.haloTexture,
           39,
           gold.clone()
-            ..lerpColors(gold, three.Color.fromHex32(0xdfe4f2).toLinear(), .3),
+            ..lerpColors(gold, sd.Color.fromHex32(0xdfe4f2).toLinear(), .3),
         ),
       );
     }
@@ -150,9 +150,8 @@ class NativeFireflyView {
       );
       rig.setWake(p.wake);
       rig.setPaletteT(palette);
-      rig.material.uniforms['uAccent']['value'] = three.Color.fromHex32(
-        0xffd9a0,
-      ).toLinear();
+      rig.material.uniforms['uAccent']['value'] = sd.Color.fromHex32(0xffd9a0)
+          .toLinear();
       rig.number('uSpark', 0);
       rig.number('uOpacity', p.opacity);
       final alpha =
@@ -161,7 +160,7 @@ class NativeFireflyView {
       lamp.visible = p.visible && alpha > .001;
       lamp.position.setValues(anchor.x * rig.flip.scale.x, anchor.y, .01);
       lamp.scale.setScalar(.1084 * p.lanternScale);
-      lamp.material!.color = three.Color.fromHex32(0xffd9a0).toLinear()
+      lamp.material!.color = sd.Color.fromHex32(0xffd9a0).toLinear()
         ..scale(alpha);
       for (final sprite in [cores[i], halos[i]]) {
         sprite.visible = !f.gone;
@@ -176,12 +175,6 @@ class NativeFireflyView {
       halos[i].scale.setScalar((.42 + p.light) / .8);
       halos[i].material!.opacity = (.14 + .4 * p.light) * f.visibility * glowK;
       rig.root.updateMatrix();
-    }
-  }
-
-  void renderParts(three.Renderer renderer) {
-    for (final rig in rigs) {
-      rig.renderParts(renderer);
     }
   }
 

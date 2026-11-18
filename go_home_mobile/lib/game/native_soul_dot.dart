@@ -1,11 +1,11 @@
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 /// Original fT additive light used when family members become spirits.
 class NativeSoulDot {
   NativeSoulDot() {
-    material = three.ShaderMaterial.fromMap({
+    material = sd.ShaderData.fromMap({
       'uniforms': {
-        'uCol': {'value': three.Color.fromHex32(0xeef4ff).toLinear()},
+        'uCol': {'value': sd.Color.fromHex32(0xeef4ff).toLinear()},
         'uA': {'value': 0.0},
       },
       'vertexShader': '''
@@ -21,17 +21,17 @@ gl_FragColor=vec4(uCol*(core*1.6+glow*0.4)*uA,1.0);}
 ''',
       'transparent': true,
       'depthWrite': false,
-      'blending': three.AdditiveBlending,
+      'blending': sd.AdditiveBlending,
     });
-    mesh = three.Mesh(three.PlaneGeometry(1, 1), material)
+    mesh = sd.DrawMesh(sd.PlaneData(1, 1), material)
       ..name = 'fam2-soul-dot'
       ..renderOrder = 30
       ..frustumCulled = false
       ..visible = false;
   }
-  late final three.ShaderMaterial material;
-  late final three.Mesh mesh;
-  void set(three.Vector3 position, double size, double alpha) {
+  late final sd.ShaderData material;
+  late final sd.DrawMesh mesh;
+  void set(sd.Vector3 position, double size, double alpha) {
     mesh.visible = alpha > .003 && size > .002;
     mesh.position.setFrom(position);
     mesh.scale.setValues(size * 3, size * 3, 1);

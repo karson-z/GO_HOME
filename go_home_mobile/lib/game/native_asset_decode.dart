@@ -4,7 +4,8 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
-import 'package:three_js/three_js.dart' as three;
+
+import 'scene_data.dart' as sd;
 
 /// Only bytes and plain data cross the isolate boundary. AssetBundle and all
 /// renderer/GL objects stay on the main isolate. compute transfers its result
@@ -75,7 +76,7 @@ NativeImagePixels decodeNativeImage((TransferableTypedData, bool) request) {
   );
 }
 
-Future<three.Texture> loadNativeTexture(
+Future<sd.TextureData> loadNativeTexture(
   String path, {
   bool flipY = false,
 }) async {
@@ -84,8 +85,8 @@ Future<three.Texture> loadNativeTexture(
     _transfer(bytes),
     flipY,
   ), debugLabel: 'image:$path');
-  return three.Texture()
-    ..image = three.ImageElement(
+  return sd.TextureData()
+    ..image = sd.PixelImage(
       url: path,
       src: path,
       data: pixels.rgba,

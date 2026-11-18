@@ -2,7 +2,8 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
-import 'package:three_js/three_js.dart' as three;
+
+import 'scene_data.dart' as sd;
 
 import 'native_scene_culling.dart';
 import 'native_asset_decode.dart';
@@ -10,7 +11,7 @@ import 'native_load_budget.dart';
 
 /// Loads source-generated scene data. All rendering and updates run in Dart.
 class NativeWorldAssets {
-  final Map<String, Future<three.Texture>> _textures = {};
+  final Map<String, Future<sd.TextureData>> _textures = {};
   late Map<String, dynamic> resources;
   late List<Map<String, dynamic>> manifest;
   final Map<String, dynamic> shared = {};
@@ -20,7 +21,7 @@ class NativeWorldAssets {
   Future<void> Function(NativeWorldChunk chunk)? prepare;
   bool _disposed = false;
   String quality = 'high';
-  final Map<three.InstancedMesh, int> _qualityMeshes = {};
+  final Map<sd.InstanceMesh, int> _qualityMeshes = {};
   void setQuality(String value) {
     if (value == quality) return;
     quality = value;
@@ -29,7 +30,7 @@ class NativeWorldAssets {
     }
   }
 
-  void _applyQuality(three.InstancedMesh mesh) {
+  void _applyQuality(sd.InstanceMesh mesh) {
     final name = mesh.material?.name;
     if (name != 'grass' && name != 'leaf') return;
     if ((mesh.count ?? 0) == 0 && !_qualityMeshes.containsKey(mesh)) return;
@@ -53,20 +54,20 @@ class NativeWorldAssets {
     ) as List).cast<Map<String, dynamic>>();
   }
 
-  Future<three.Texture> texture(String? id) =>
+  Future<sd.TextureData> texture(String? id) =>
       _textures.putIfAbsent(id ?? '_empty', () async {
         if (id == null) {
-          return three.DataTexture(Uint8List.fromList([0, 0, 0, 0]), 1, 1)
+          return sd.PixelTexture(Uint8List.fromList([0, 0, 0, 0]), 1, 1)
             ..needsUpdate = true;
         }
         final data = resources['textures'][id] as Map<String, dynamic>;
         final file = 'assets/world/${data['file']}';
-        three.Texture t;
+        sd.TextureData t;
         if (data['raw'] == true) {
           final bytes = await rootBundle.load(file);
           final type = data['type'] as int;
-          t = type == three.FloatType
-              ? three.DataTexture(
+          t = type == sd.FloatType
+              ? sd.PixelTexture(
                   bytes.buffer.asFloat32List(
                     bytes.offsetInBytes,
                     bytes.lengthInBytes ~/ 4,
@@ -76,8 +77,8 @@ class NativeWorldAssets {
                   data['format'],
                   type,
                 )
-              : type == three.HalfFloatType
-              ? three.DataTexture(
+              : type == sd.HalfFloatType
+              ? sd.PixelTexture(
                   bytes.buffer.asUint16List(
                     bytes.offsetInBytes,
                     bytes.lengthInBytes ~/ 2,
@@ -87,7 +88,7 @@ class NativeWorldAssets {
                   data['format'],
                   type,
                 )
-              : three.DataTexture(
+              : sd.PixelTexture(
                   bytes.buffer.asUint8List(
                     bytes.offsetInBytes,
                     bytes.lengthInBytes,
@@ -104,7 +105,7 @@ class NativeWorldAssets {
         t.wrapT = data['wrapT'];
         t.magFilter = data['magFilter'];
         t.minFilter = data['minFilter'];
-        t.colorSpace = data['colorSpace'] ?? three.NoColorSpace;
+        t.colorSpace = data['colorSpace'] ?? sd.NoColorSpace;
         t.premultiplyAlpha = data['premultiplyAlpha'] == true;
         t.generateMipmaps = true;
         t.needsUpdate = true;
@@ -115,11 +116,9 @@ class NativeWorldAssets {
   Future<dynamic> _value(dynamic value) async {
     if (value is List) {
       final values = await Future.wait(value.map(_value));
-      // Dart Color stores RGBA; the GPU array flattener requires exactly RGB.
+      // Store color arrays as RGB vectors for contiguous GPU uniform packing.
       return values
-          .map(
-            (v) => v is three.Color ? three.Vector3(v.red, v.green, v.blue) : v,
-          )
+          .map((v) => v is sd.Color ? sd.Vector3(v.red, v.green, v.blue) : v)
           .toList();
     }
     if (value is! Map) return value;
@@ -128,20 +127,20 @@ class NativeWorldAssets {
         (v as List).map((n) => (n as num).toDouble()).toList();
     if (value.containsKey('color')) {
       final v = numbers(value['color']);
-      return three.Color()..setRGB(v[0], v[1], v[2]);
+      return sd.Color()..setRGB(v[0], v[1], v[2]);
     }
     if (value.containsKey('vector')) {
       final v = numbers(value['vector']);
       return switch (v.length) {
-        2 => three.Vector2(v[0], v[1]),
-        3 => three.Vector3(v[0], v[1], v[2]),
-        _ => three.Vector4(v[0], v[1], v[2], v[3]),
+        2 => sd.Vector2(v[0], v[1]),
+        3 => sd.Vector3(v[0], v[1], v[2]),
+        _ => sd.Vector4(v[0], v[1], v[2], v[3]),
       };
     }
     if (value.containsKey('matrix')) {
       final v = numbers(value['matrix']);
-      if (v.length == 16) return three.Matrix4.identity()..fromNativeArray(v);
-      final m = three.Matrix3.identity();
+      if (v.length == 16) return sd.Matrix4.identity()..fromNativeArray(v);
+      final m = sd.Matrix3.identity();
       for (var i = 0; i < 9; i++) {
         m[i] = v[i];
       }
@@ -170,7 +169,7 @@ class NativeWorldAssets {
     try {
       chunk.onDispose = () {
         for (final node in chunk.nodes) {
-          if (node is three.InstancedMesh) _qualityMeshes.remove(node);
+          if (node is sd.InstanceMesh) _qualityMeshes.remove(node);
         }
       };
       if (json['shared'] != null) {
@@ -180,11 +179,11 @@ class NativeWorldAssets {
           };
         }
       }
-      three.BufferAttribute attribute(Map<String, dynamic> data) {
+      sd.VertexAttribute attribute(Map<String, dynamic> data) {
         final offset = bytes.offsetInBytes + (data['offset'] as int);
         final length = data['length'] as int, size = data['size'] as int;
         if (data['integer'] == true) {
-          return three.Uint32BufferAttribute(
+          return sd.IndexAttribute(
             bytes.buffer.asUint32List(offset, length),
             size,
           );
@@ -193,23 +192,23 @@ class NativeWorldAssets {
         // lifetime; animated branches can deform it without per-attribute copies.
         final array = bytes.buffer.asFloat32List(offset, length);
         if (data['instanced'] == true) {
-          return three.InstancedBufferAttribute(
+          return sd.InstanceAttribute(
             array,
             size,
             false,
             data['meshPerAttribute'] as int,
           );
         }
-        return three.Float32BufferAttribute(array, size);
+        return sd.FloatAttribute(array, size);
       }
 
-      final geometries = <String, three.BufferGeometry>{};
-      three.Vector3 point(List p) => three.Vector3(
+      final geometries = <String, sd.GeometryData>{};
+      sd.Vector3 point(List p) => sd.Vector3(
         (p[0] as num).toDouble(),
         (p[1] as num).toDouble(),
         (p[2] as num).toDouble(),
       );
-      three.BoundingSphere sphere(Map data) => three.BoundingSphere(
+      sd.SphereBounds sphere(Map data) => sd.SphereBounds(
         point(data['center']),
         (data['radius'] as num).toDouble(),
       );
@@ -218,8 +217,8 @@ class NativeWorldAssets {
         await budget.checkpoint();
         final data = entry.value;
         final g = data['instanced'] == true
-            ? three.InstancedBufferGeometry()
-            : three.BufferGeometry();
+            ? sd.InstanceGeometry()
+            : sd.GeometryData();
         for (final a in (data['attributes'] as Map<String, dynamic>).entries) {
           g.setAttributeFromString(a.key, attribute(a.value));
         }
@@ -240,7 +239,7 @@ class NativeWorldAssets {
         geometries[entry.key] = g;
         chunk.geometries.add(g);
       }
-      final materials = <String, three.Material>{};
+      final materials = <String, sd.MaterialData>{};
       for (final entry in (json['materials'] as Map<String, dynamic>).entries) {
         await budget.checkpoint();
         final data = Map<String, dynamic>.from(entry.value);
@@ -254,7 +253,7 @@ class NativeWorldAssets {
           ..remove('color')
           ..remove('map')
           ..remove('alphaMap');
-        three.Material material;
+        sd.MaterialData material;
         if (data['vertex'] != null) {
           final uniforms = <String, dynamic>{};
           for (final u in (data['uniforms'] as Map<String, dynamic>).entries) {
@@ -266,7 +265,7 @@ class NativeWorldAssets {
           options['vertexShader'] = resources['shaders'][data['vertex']];
           options['fragmentShader'] = resources['shaders'][data['fragment']];
           // Some original uniforms (e.g. cave uX/uY) were plain JS arrays.
-          // GLES expects Vector objects for scalar GLSL vectors. Keep uniform
+          // Shader packing uses typed vectors for scalar GLSL values. Keep uniform
           // arrays as lists; their upload path has different requirements.
           final source =
               '${options['vertexShader']}\n${options['fragmentShader']}';
@@ -279,7 +278,7 @@ class NativeWorldAssets {
             uniform['value'] = await _value({'vector': value});
           }
           options['uniforms'] = uniforms;
-          material = three.ShaderMaterial.fromMap(options);
+          material = sd.ShaderData.fromMap(options);
         } else {
           if (data['color'] != null) {
             options['color'] = await _value(data['color']);
@@ -293,8 +292,8 @@ class NativeWorldAssets {
             );
           }
           material = data['type'] == 'SpriteMaterial'
-              ? three.SpriteMaterial.fromMap(options)
-              : three.MeshBasicMaterial.fromMap(options);
+              ? sd.BillboardData.fromMap(options)
+              : sd.UnlitData.fromMap(options);
         }
         if (data['rotation'] != null) {
           material.rotation = (data['rotation'] as num).toDouble();
@@ -302,7 +301,7 @@ class NativeWorldAssets {
         materials[entry.key] = material;
         chunk.materials.add(material);
       }
-      Future<three.Object3D> node(Map<String, dynamic> data) async {
+      Future<sd.SceneNode> node(Map<String, dynamic> data) async {
         await budget.checkpoint();
         final geometry = geometries[data['geometry']];
         final mat = data['material'];
@@ -311,37 +310,36 @@ class NativeWorldAssets {
             : mat is List
             ? materials[mat.first]
             : null;
-        three.Object3D o;
+        sd.SceneNode o;
         if (data['instances'] != null) {
           // The constructor otherwise allocates a throwaway count*16 matrix.
-          final mesh = three.InstancedMesh(geometry!, material, 0)
+          final mesh = sd.InstanceMesh(geometry!, material, 0)
             ..count = data['count'];
           mesh.instanceMatrix =
-              attribute(data['instances']) as three.InstancedBufferAttribute;
+              attribute(data['instances']) as sd.InstanceAttribute;
           if (data['instanceColor'] != null) {
-            mesh.instanceColor = attribute(
-              data['instanceColor'],
-            ) as three.InstancedBufferAttribute;
+            mesh.instanceColor =
+                attribute(data['instanceColor']) as sd.InstanceAttribute;
           }
           _applyQuality(mesh);
           o = mesh;
         } else if (data['type'] == 'Sprite') {
-          o = three.Sprite(material);
+          o = sd.BillboardNode(material);
         } else if (geometry != null) {
           o = data['type'] == 'Points'
-              ? three.Points(geometry, material)
+              ? sd.PointCloud(geometry, material)
               : data['type'] == 'LineSegments'
-              ? three.LineSegments(geometry, material)
-              : three.Mesh(geometry, material);
+              ? sd.LineSegments(geometry, material)
+              : sd.DrawMesh(geometry, material);
         } else {
-          o = three.Group();
+          o = sd.GroupNode();
         }
         o.name = data['name'];
         o.visible = data['visible'];
         o.renderOrder = (data['order'] as num).toInt();
         o.frustumCulled = data['culled'];
         o.layers.mask = (data['layers'] as num?)?.toInt() ?? 1;
-        if (o is three.InstancedMesh && (o.count ?? 0) > 0) {
+        if (o is sd.InstanceMesh && (o.count ?? 0) > 0) {
           o.boundingSphere = data['boundingSphere'] != null
               ? sphere(data['boundingSphere'])
               : null;
@@ -365,12 +363,9 @@ class NativeWorldAssets {
         chunk.nodes.add(o);
         final box = data['visibilityBox'];
         if (box != null) {
-          final bounds = three.BoundingBox(
-            point(box['min']),
-            point(box['max']),
-          );
+          final bounds = sd.BoxBounds(point(box['min']), point(box['max']));
           chunk.visibilityBoxes.add((node: o, box: bounds));
-          if (o is three.Mesh && o is! three.InstancedMesh) {
+          if (o is sd.DrawMesh && o is! sd.InstanceMesh) {
             chunk.culling.addBounds(o, bounds);
           }
         }
@@ -421,16 +416,16 @@ class NativeWorldChunk {
   bool _disposed = false;
   void Function()? onDispose;
   final Map<String, dynamic> data;
-  final three.Group root = three.Group()..matrixAutoUpdate = false;
-  final List<three.Object3D> nodes = [];
-  final List<three.BufferGeometry> geometries = [];
-  final List<three.Material> materials = [];
+  final sd.GroupNode root = sd.GroupNode()..matrixAutoUpdate = false;
+  final List<sd.SceneNode> nodes = [];
+  final List<sd.GeometryData> geometries = [];
+  final List<sd.MaterialData> materials = [];
   final culling = NativeSceneCulling();
-  final visibilityBoxes = <({three.Object3D node, three.BoundingBox box})>[];
+  final visibilityBoxes = <({sd.SceneNode node, sd.BoxBounds box})>[];
 
-  bool intersectsView(three.Frustum frustum) => visibilityBoxes.any((entry) {
+  bool intersectsView(sd.ViewFrustum frustum) => visibilityBoxes.any((entry) {
     for (
-      three.Object3D? node = entry.node;
+      sd.SceneNode? node = entry.node;
       node != null && node != root;
       node = node.parent
     ) {
@@ -468,20 +463,20 @@ class NativeWorldChunk {
       o.position.x = cameraX;
       o.position.y = base + 38;
       o.updateMatrix();
-      if (o is three.Mesh && o.material is three.ShaderMaterial) {
+      if (o is sd.DrawMesh && o.material is sd.ShaderData) {
         o.material!.uniforms['uBase']['value'] = base;
-        final zone = o.material!.uniforms['uZone']['value'] as three.Vector4;
+        final zone = o.material!.uniforms['uZone']['value'] as sd.Vector4;
         final extent = .46 * (cameraZ - o.position.z);
         o.visible = cameraX + extent > zone.x && cameraX - extent < zone.w;
       }
     }
   }
 
-  void updateBeams(double cameraX, double rays, three.Vector3 light) {
+  void updateBeams(double cameraX, double rays, sd.Vector3 light) {
     final specs = data['beams'] as List? ?? const [];
     var index = 0;
     for (final node in nodes) {
-      if (!node.name.startsWith('BEAM_') || node is! three.Mesh) continue;
+      if (!node.name.startsWith('BEAM_') || node is! sd.DrawMesh) continue;
       final strength = rays * (specs[index++][2] as num) * .16;
       node.material!.uniforms['uStrength']['value'] = strength;
       node.visible = strength > .002 && (node.position.x - cameraX).abs() < 40;
@@ -510,7 +505,7 @@ class NativeWorldChunk {
         node.position.y = base - 40 * cut;
         node.updateMatrix();
       }
-      if (node is! three.Mesh) continue;
+      if (node is! sd.DrawMesh) continue;
       final u = node.material!.uniforms;
       if (node.name == 'W6_WATER') u['uFarCut']['value'] = cut;
       if (node.name == 'W6_GATE_FOG' || node.name == 'W6_FAR_VEIL') {
@@ -534,9 +529,9 @@ class NativeWorldChunk {
     _disposed = true;
     onDispose?.call();
     root.removeFromParent();
-    // ANGLE owns instance buffers separately from the shared geometry buffers.
-    for (final node in nodes.whereType<three.InstancedMesh>()) {
-      node.dispatchEvent(three.Event(type: 'dispose'));
+    // Instance attributes are owned separately from shared geometry buffers.
+    for (final node in nodes.whereType<sd.InstanceMesh>()) {
+      node.dispatchEvent(sd.Event(type: 'dispose'));
     }
     for (final m in materials) {
       m.dispose();

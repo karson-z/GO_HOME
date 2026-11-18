@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_world_assets.dart';
 import 'native_asset_decode.dart';
@@ -27,20 +27,20 @@ class NativeSquirrelView {
   ) {
     chunk.root.updateMatrixWorld(true);
     for (final n in chunk.nodes) {
-      if (n is three.Mesh &&
-          n.material is three.ShaderMaterial &&
+      if (n is sd.DrawMesh &&
+          n.material is sd.ShaderData &&
           n.material!.uniforms.containsKey('uDeep') &&
           n.material!.uniforms.containsKey('uRim')) {
         // Source uv places the atlas actor in the hollow's scene layer, .02
         // ahead of its surface; gameplay coordinates are local to that layer.
-        final at = n.getWorldPosition(three.Vector3());
+        final at = n.getWorldPosition(sd.Vector3());
         holeZ = n.position.z + .02;
         layerZ = at.z - n.position.z;
       }
       if (n.name == 'MOVE_door' || n.name == 'MOVE_slab') {
         doors[n] = n.position.y;
       }
-      if (n is three.Group && n.children.length == 4) {
+      if (n is sd.GroupNode && n.children.length == 4) {
         for (var i = 0; i < 3; i++) {
           final at = const [
             [11.4, 5.25],
@@ -57,8 +57,8 @@ class NativeSquirrelView {
   }
   final Map<String, dynamic> deliveryData, bagData;
   NativeSquirrelBag? bag;
-  final Map<three.Object3D, double> doors = {};
-  final Map<int, three.Object3D> fruits = {};
+  final Map<sd.SceneNode, double> doors = {};
+  final Map<int, sd.SceneNode> fruits = {};
   final Map<int, double> fruitParentZ = {};
   double layerZ = -3.202, holeZ = -.015;
   NativePuppetRenderer? actor;
@@ -183,7 +183,7 @@ class NativeSquirrelView {
       // Source door adapter brings fruit forward with the door face near x24.
       final parentZ = fruitParentZ.putIfAbsent(
         i,
-        () => group.parent!.getWorldPosition(three.Vector3()).z,
+        () => group.parent!.getWorldPosition(sd.Vector3()).z,
       );
       final doorDepth = OriginalSquirrel.smooth((group.position.x - 21) / 3);
       group.position.z += doorDepth * (-.765 - parentZ - group.position.z);

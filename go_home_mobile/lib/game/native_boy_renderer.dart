@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_asset_decode.dart';
 
@@ -17,11 +17,11 @@ import 'original_opening_pose.dart';
 class NativeBoyRenderer {
   NativeBoyRenderer._(this.rig);
   final CharacterRig rig;
-  final root = three.Group(), stage = three.Scene();
-  final camera = three.OrthographicCamera(-.8, .8, 1.45, -.15, -10, 10);
-  late final three.RenderTarget target;
-  late final three.ShaderMaterial material;
-  late final three.Mesh quad;
+  final root = sd.GroupNode(), stage = sd.WorldScene();
+  final camera = sd.OrthographicLens(-.8, .8, 1.45, -.15, -10, 10);
+  late final sd.RenderSurface target;
+  late final sd.ShaderData material;
+  late final sd.DrawMesh quad;
   OriginalBoyMotion? motion;
   BoyKinematics? skeleton;
   OriginalBoyRuntime? runtime;
@@ -31,11 +31,11 @@ class NativeBoyRenderer {
   int motionRevision = -1;
   BoyMotionPose? lastMotionPose;
   bool motionStepped = false;
-  three.Group? crankJoint;
-  three.DataTexture? crankTexture;
+  sd.GroupNode? crankJoint;
+  sd.PixelTexture? crankTexture;
   final partData = <String, Map<String, dynamic>>{};
   int noteSerial = 0;
-  final basePositions = <String, three.Vector3>{};
+  final basePositions = <String, sd.Vector3>{};
   static Future<NativeBoyRenderer> load(
     Map<String, dynamic> shared, {
     String name = 'boy',
@@ -79,18 +79,18 @@ class NativeBoyRenderer {
     for (final entry in rig.joints.entries) {
       result.basePositions[entry.key] = entry.value.position.clone();
       final p = parts[entry.key], uv = p['uv'] as List;
-      final mesh = entry.value.children.whereType<three.Mesh>().first;
-      final attr = mesh.geometry!.getAttribute(three.Attribute.uv);
+      final mesh = entry.value.children.whereType<sd.DrawMesh>().first;
+      final attr = mesh.geometry!.getAttribute(sd.Attribute.uv);
       attr.setXY(0, 0.0, 1.0);
       attr.setXY(1, 1.0, 1.0);
       attr.setXY(2, 0.0, 0.0);
       attr.setXY(3, 1.0, 0.0);
       attr.needsUpdate = true;
-      final m = three.ShaderMaterial.fromMap({
+      final m = sd.ShaderData.fromMap({
         'uniforms': {
           'uMap': {'value': rig.texture},
           'uUv': {
-            'value': three.Vector4(
+            'value': sd.Vector4(
               (uv[0] as num).toDouble(),
               (uv[1] as num).toDouble(),
               (uv[2] as num).toDouble(),
@@ -112,14 +112,14 @@ class NativeBoyRenderer {
       rig.materials.add(m);
     }
     if (name == 'boy') result.enableCrank(shaders);
-    result.target = three.RenderTarget(
+    result.target = sd.RenderSurface(
       512,
       512,
-      three.RenderTargetOptions.create(
-        minFilter: three.LinearFilter,
-        magFilter: three.LinearFilter,
+      sd.SurfaceOptions.create(
+        minFilter: sd.LinearFilter,
+        magFilter: sd.LinearFilter,
         depthBuffer: false,
-        colorSpace: three.NoColorSpace,
+        colorSpace: sd.NoColorSpace,
       ),
     );
     final uniforms = <String, dynamic>{
@@ -136,9 +136,7 @@ class NativeBoyRenderer {
       'uHaloCol': 0x6a4a2e,
       'uHairCol': 0xe9e4da,
     }.entries) {
-      uniforms[pair.key] = {
-        'value': three.Color.fromHex32(pair.value).toLinear(),
-      };
+      uniforms[pair.key] = {'value': sd.Color.fromHex32(pair.value).toLinear()};
     }
     for (final pair in {
       'uFootY': 0.0,
@@ -157,7 +155,7 @@ class NativeBoyRenderer {
     }.entries) {
       uniforms[pair.key] = {'value': pair.value};
     }
-    result.material = three.ShaderMaterial.fromMap({
+    result.material = sd.ShaderData.fromMap({
       'uniforms': uniforms,
       'vertexShader': shaders['core_hg'],
       'fragmentShader': shaders['core_gg'],
@@ -165,8 +163,8 @@ class NativeBoyRenderer {
       'depthWrite': false,
       'toneMapped': false,
     });
-    final geometry = three.PlaneGeometry(1.6, 1.6)..translate(0, .65, 0);
-    result.quad = three.Mesh(geometry, result.material)
+    final geometry = sd.PlaneData(1.6, 1.6)..translate(0, .65, 0);
+    result.quad = sd.DrawMesh(geometry, result.material)
       ..name = '$name-puppet'
       ..renderOrder = 26
       ..frustumCulled = false;
@@ -243,7 +241,7 @@ class NativeBoyRenderer {
     root.position.y = y + player.dy;
     setFootY(y + player.dy);
     crankJoint?.rotation.z = -player.motion.crank.theta;
-    rig.joints['handF']!.children.whereType<three.Mesh>().first.renderOrder =
+    rig.joints['handF']!.children.whereType<sd.DrawMesh>().first.renderOrder =
         player.motion.crank.k > .5 ? 87 : 82;
   }
 
@@ -262,13 +260,13 @@ class NativeBoyRenderer {
   /// RE's contact landmarks, in the rendered character's world coordinates.
   /// The compositor stage is independent of the scene, so apply the quad root
   /// transform after reading the animated part's centre from the stage.
-  Map<String, three.Vector3> endingLandmarks() {
+  Map<String, sd.Vector3> endingLandmarks() {
     stage.updateMatrixWorld(true);
     root.updateMatrixWorld(true);
-    three.Vector3 centre(String id) {
+    sd.Vector3 centre(String id) {
       final joint = rig.joints[id]!;
-      final mesh = joint.children.whereType<three.Mesh>().first;
-      return mesh.getWorldPosition(three.Vector3())
+      final mesh = joint.children.whereType<sd.DrawMesh>().first;
+      return mesh.getWorldPosition(sd.Vector3())
         ..applyMatrix4(root.matrixWorld);
     }
 
@@ -278,12 +276,12 @@ class NativeBoyRenderer {
       'head': head.clone()..y += .12,
       'face': head.clone()..x += .08,
       'ear': head.clone(),
-      'shoulder': three.Vector3(x, y - .22, z),
-      'armpit': three.Vector3(x, y - .33, z),
-      'waist': three.Vector3(x, y - .5, z),
+      'shoulder': sd.Vector3(x, y - .22, z),
+      'armpit': sd.Vector3(x, y - .33, z),
+      'waist': sd.Vector3(x, y - .5, z),
       'hand': hand,
-      'arm': three.Vector3(x + .05, y - .42, z),
-      'back': three.Vector3(x - .12 * (root.scale.x < 0 ? -1 : 1), y - .45, z),
+      'arm': sd.Vector3(x + .05, y - .42, z),
+      'back': sd.Vector3(x - .12 * (root.scale.x < 0 ? -1 : 1), y - .45, z),
     };
   }
 
@@ -292,15 +290,12 @@ class NativeBoyRenderer {
     final inverse = stage.matrixWorld.clone()..invert();
     var lowest = double.infinity;
     for (final mesh
-        in rig.joints[id]?.children.whereType<three.Mesh>() ?? <three.Mesh>[]) {
-      final position = mesh.geometry!.getAttribute(three.Attribute.position);
+        in rig.joints[id]?.children.whereType<sd.DrawMesh>() ??
+            <sd.DrawMesh>[]) {
+      final position = mesh.geometry!.getAttribute(sd.Attribute.position);
       for (var i = 0; i < position.count; i++) {
         final point =
-            three.Vector3(
-                position.getX(i)!,
-                position.getY(i)!,
-                position.getZ(i)!,
-              )
+            sd.Vector3(position.getX(i), position.getY(i), position.getZ(i))
               ..applyMatrix4(mesh.matrixWorld)
               ..applyMatrix4(inverse);
         lowest = math.min(lowest, point.y);
@@ -324,7 +319,9 @@ class NativeBoyRenderer {
         uv = p['uv'] as List,
         size = p['size'] as List,
         pivot = p['pivot'] as List;
-    final mesh = rig.joints['musicbox']!.children.whereType<three.Mesh>().first;
+    final mesh = rig.joints['musicbox']!.children
+        .whereType<sd.DrawMesh>()
+        .first;
     final width =
         (size[0] as num) *
         (.54492 - (uv[0] as num)) /
@@ -332,20 +329,19 @@ class NativeBoyRenderer {
     final h = (size[1] as num).toDouble(),
         px = (pivot[0] as num) * (size[0] as num) / width;
     final old = mesh.geometry!;
-    final g = three.PlaneGeometry(width, h)
+    final g = sd.PlaneData(width, h)
       ..translate(width * (.5 - px), h * (.5 - (pivot[1] as num)), 0);
     rig.geometries.remove(old);
     old.dispose();
     rig.geometries.add(g);
     mesh.geometry = g;
     mesh.position.setValues(0, 0, 0);
-    (mesh.material as three.ShaderMaterial).uniforms['uUv']['value'] =
-        three.Vector4(
-          (uv[0] as num).toDouble(),
-          (uv[1] as num).toDouble(),
-          .54492,
-          (uv[3] as num).toDouble(),
-        );
+    (mesh.material as sd.ShaderData).uniforms['uUv']['value'] = sd.Vector4(
+      (uv[0] as num).toDouble(),
+      (uv[1] as num).toDouble(),
+      .54492,
+      (uv[3] as num).toDouble(),
+    );
     final bytes = Uint8List(26 * 66 * 4);
     for (var y = 0; y < 66; y++) {
       for (var x = 0; x < 26; x++) {
@@ -365,15 +361,15 @@ class NativeBoyRenderer {
         }
       }
     }
-    crankTexture = three.DataTexture(bytes, 26, 66)
-      ..colorSpace = three.NoColorSpace
-      ..magFilter = three.LinearFilter
-      ..minFilter = three.LinearFilter
+    crankTexture = sd.PixelTexture(bytes, 26, 66)
+      ..colorSpace = sd.NoColorSpace
+      ..magFilter = sd.LinearFilter
+      ..minFilter = sd.LinearFilter
       ..needsUpdate = true;
-    final material = three.ShaderMaterial.fromMap({
+    final material = sd.ShaderData.fromMap({
       'uniforms': {
         'uMap': {'value': crankTexture},
-        'uUv': {'value': three.Vector4(0, 0, 1, 1)},
+        'uUv': {'value': sd.Vector4(0, 0, 1, 1)},
       },
       'vertexShader': shaders['core_pg'],
       'fragmentShader': shaders['core_mg'],
@@ -383,13 +379,13 @@ class NativeBoyRenderer {
       'toneMapped': false,
     });
     rig.materials.add(material);
-    final geometry = three.PlaneGeometry(.026, .066)..translate(0, .020, 0);
+    final geometry = sd.PlaneData(.026, .066)..translate(0, .020, 0);
     rig.geometries.add(geometry);
-    final crank = three.Mesh(geometry, material)
+    final crank = sd.DrawMesh(geometry, material)
       ..name = 'boy-crank'
       ..renderOrder = 86
       ..frustumCulled = false;
-    crankJoint = three.Group()
+    crankJoint = sd.GroupNode()
       ..position.setValues(.069, .024, 0)
       ..add(crank);
     rig.joints['musicbox']!.add(crankJoint!);
@@ -457,14 +453,14 @@ class NativeBoyRenderer {
     var lowest = double.infinity;
     for (final id in ['footF', 'footB']) {
       for (final mesh
-          in rig.joints[id]?.children.whereType<three.Mesh>() ??
-              <three.Mesh>[]) {
-        final positions = mesh.geometry!.getAttribute(three.Attribute.position);
+          in rig.joints[id]?.children.whereType<sd.DrawMesh>() ??
+              <sd.DrawMesh>[]) {
+        final positions = mesh.geometry!.getAttribute(sd.Attribute.position);
         for (var i = 0; i < positions.count; i++) {
-          final point = three.Vector3(
-            positions.getX(i)!,
-            positions.getY(i)!,
-            positions.getZ(i)!,
+          final point = sd.Vector3(
+            positions.getX(i),
+            positions.getY(i),
+            positions.getZ(i),
           )..applyMatrix4(mesh.matrixWorld);
           lowest = math.min(lowest, point.y);
         }
@@ -484,21 +480,6 @@ class NativeBoyRenderer {
       }
       box.rotation.z += (-angle - box.rotation.z) * k;
     }
-  }
-
-  void renderParts(three.Renderer renderer) {
-    final previous = renderer.getRenderTarget(),
-        alpha = renderer.getClearAlpha();
-    final color = renderer.getClearColor(three.Color()),
-        autoClear = renderer.autoClear;
-    renderer.setRenderTarget(target);
-    renderer.setClearColor(three.Color.fromHex32(0), 0);
-    renderer.clear(true, false, false);
-    renderer.autoClear = false;
-    renderer.render(stage, camera);
-    renderer.autoClear = autoClear;
-    renderer.setClearColor(color, alpha);
-    renderer.setRenderTarget(previous);
   }
 
   void setFootY(double y) => material.uniforms['uFootY']['value'] = y;

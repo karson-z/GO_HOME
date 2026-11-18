@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_world_assets.dart';
 import 'native_asset_decode.dart';
@@ -20,7 +20,7 @@ class NativeBearView {
     this.turnRig, {
     this.ending = false,
   }) {
-    for (final node in chunk?.nodes ?? <three.Object3D>[]) {
+    for (final node in chunk?.nodes ?? <sd.SceneNode>[]) {
       if (node.name == 'MOVE_saw') plank = node;
     }
     turnRig.root.visible = false;
@@ -29,7 +29,7 @@ class NativeBearView {
 
   static Future<NativeBearView> load(
     NativeWorldChunk chunk,
-    three.Scene scene,
+    sd.WorldScene scene,
     Map<String, dynamic> shared,
   ) async {
     final shaders = await decodeNativeJsonAsset(
@@ -40,7 +40,7 @@ class NativeBearView {
   }
 
   static Future<NativeBearView> loadEnding(
-    three.Group root,
+    sd.GroupNode root,
     Map<String, dynamic> shared,
   ) async {
     final shaders = await decodeNativeJsonAsset(
@@ -50,15 +50,15 @@ class NativeBearView {
     return NativeBearView._(null, root, shared, shaders, turn, ending: true);
   }
 
-  final three.Object3D scene;
+  final sd.SceneNode scene;
   final bool ending;
   final Map<String, dynamic> shared, shaders;
   final NativePuppetRenderer turnRig;
-  three.Object3D? plank;
+  sd.SceneNode? plank;
   NativePuppetRenderer? mainRig;
   OriginalPuppetRig? skeleton;
   OriginalBearMotion? motion;
-  three.Mesh? under, line, vWake;
+  sd.DrawMesh? under, line, vWake;
   double time = 0, wakeT = 0, wake = 0, moveK = 0, popT = double.infinity;
   bool started = false;
   String? previousFrame;
@@ -106,7 +106,7 @@ class NativeBearView {
     skeleton = OriginalPuppetRig(rig.data);
     motion = OriginalBearMotion(skeleton!);
     if (ending) return;
-    final underMaterial = three.ShaderMaterial.fromMap({
+    final underMaterial = sd.ShaderData.fromMap({
       'uniforms': {
         'uMap': {'value': rig.target.texture},
         'uOpacity': rig.material.uniforms['uOpacity'],
@@ -115,9 +115,9 @@ class NativeBearView {
         'uStr': {'value': .9},
         'uT': {'value': 0.0},
         // Source new Color(r,g,b): already in linear working space.
-        'uTint': {'value': three.Vector3(.5, .58, .7)},
+        'uTint': {'value': sd.Vector3(.5, .58, .7)},
         'uTexel': {
-          'value': three.Vector2(1 / rig.target.width, 1 / rig.target.height),
+          'value': sd.Vector2(1 / rig.target.width, 1 / rig.target.height),
         },
         'uBlur': {'value': 6.0},
         'uFull': {'value': .15},
@@ -131,25 +131,25 @@ class NativeBearView {
       'depthTest': false,
       'depthWrite': false,
       'toneMapped': false,
-      'blending': three.CustomBlending,
-      'blendEquation': three.AddEquation,
-      'blendSrc': three.ZeroFactor,
-      'blendDst': three.SrcColorFactor,
-      'blendSrcAlpha': three.ZeroFactor,
-      'blendDstAlpha': three.OneFactor,
+      'blending': sd.CustomBlending,
+      'blendEquation': sd.AddEquation,
+      'blendSrc': sd.ZeroFactor,
+      'blendDst': sd.SrcColorFactor,
+      'blendSrcAlpha': sd.ZeroFactor,
+      'blendDstAlpha': sd.OneFactor,
     });
-    under = three.Mesh(rig.quad.geometry, underMaterial)
+    under = sd.DrawMesh(rig.quad.geometry, underMaterial)
       ..name = 'BEAR_UNDERWATER'
       ..renderOrder = 7
       ..frustumCulled = false
       ..matrixAutoUpdate = false
       ..matrixWorldAutoUpdate = false;
     line =
-        three.Mesh(
-            three.PlaneGeometry(1, .36),
-            three.ShaderMaterial.fromMap({
+        sd.DrawMesh(
+            sd.PlaneData(1, .36),
+            sd.ShaderData.fromMap({
               'uniforms': {
-                'uCol': {'value': three.Vector3()},
+                'uCol': {'value': sd.Vector3()},
                 for (final e in {
                   'uOp': 0.0,
                   'uDir': 1.0,
@@ -175,15 +175,15 @@ class NativeBearView {
           ..frustumCulled = false
           ..visible = false;
     vWake =
-        three.Mesh(
-            three.PlaneGeometry(2.95, 2.2),
-            three.ShaderMaterial.fromMap({
+        sd.DrawMesh(
+            sd.PlaneData(2.95, 2.2),
+            sd.ShaderData.fromMap({
               'uniforms': {
-                'uCol': {'value': three.Vector3()},
+                'uCol': {'value': sd.Vector3()},
                 'uOp': {'value': 1.0},
                 'uMove': {'value': 0.0},
                 'uT': {'value': 0.0},
-                'uSize': {'value': three.Vector2(2.95, 2.2)},
+                'uSize': {'value': sd.Vector2(2.95, 2.2)},
                 'uAhead': {'value': .35},
               },
               'vertexShader': _vertex,
@@ -307,8 +307,8 @@ class NativeBearView {
       rig.number('uClipSoft', near ? .025 : 0);
       rig.number('uClipWave', 0);
       rig.number('uClipT', time);
-      final layer = (shared['uLayerCol']['value'] as List)[4] as three.Vector3;
-      final wet = rig.material.uniforms['uWetCol']['value'] as three.Color;
+      final layer = (shared['uLayerCol']['value'] as List)[4] as sd.Vector3;
+      final wet = rig.material.uniforms['uWetCol']['value'] as sd.Color;
       wet.red = layer.x * .8;
       wet.green = layer.y * .8;
       wet.blue = layer.z * .8;
@@ -328,9 +328,9 @@ class NativeBearView {
         final u = vWake!.material!.uniforms;
         u['uMove']['value'] = moveK;
         u['uT']['value'] = time;
-        (u['uCol']['value'] as three.Vector3)
+        (u['uCol']['value'] as sd.Vector3)
             .setFrom(layer)
-            .lerp(three.Vector3(.97, .96, .93), .8);
+            .lerp(sd.Vector3(.97, .96, .93), .8);
       }
     }
     // Source aE calls Bg.update only after the waterline's pointOf query.
@@ -346,7 +346,7 @@ class NativeBearView {
     double x,
     double y,
     double z,
-    three.Vector3 layer,
+    sd.Vector3 layer,
   ) {
     line!.visible = false;
     if (waterY == null) return;
@@ -387,12 +387,8 @@ class NativeBearView {
     }.entries) {
       u[e.key]['value'] = e.value;
     }
-    (u['uCol']['value'] as three.Vector3).setFrom(layer).scale(1.02);
+    (u['uCol']['value'] as sd.Vector3).setFrom(layer).scale(1.02);
     line!.visible = true;
-  }
-
-  void renderParts(three.Renderer renderer) {
-    if (turnRig.root.visible) turnRig.renderParts(renderer);
   }
 
   void dispose() {

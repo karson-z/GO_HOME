@@ -1,4 +1,4 @@
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_asset_decode.dart';
 
@@ -20,7 +20,7 @@ class NativeFamilyRenderer {
   final NativeBoyRenderer renderer;
   final double height;
   final Map<String, Map<String, dynamic>> parts;
-  three.Group get root => renderer.root;
+  sd.GroupNode get root => renderer.root;
   final OriginalFamily animation;
   bool shown = false;
   static Future<NativeFamilyRenderer> load(
@@ -56,8 +56,8 @@ class NativeFamilyRenderer {
     if (['mom', 'granny', 'grandma'].contains(who)) {
       for (final id in ['thighF', 'thighB', 'shinF', 'shinB']) {
         for (final m
-            in r.rig.joints[id]?.children.whereType<three.Mesh>() ??
-                <three.Mesh>[]) {
+            in r.rig.joints[id]?.children.whereType<sd.DrawMesh>() ??
+                <sd.DrawMesh>[]) {
           m.visible = false;
         }
       }
@@ -88,7 +88,7 @@ class NativeFamilyRenderer {
     double palette, {
     double? footY,
     double Function(double)? groundAt,
-    three.Vector3? look,
+    sd.Vector3? look,
     Map<String, FamilyReach> reach = const {},
     double shrink = 0,
     double lean = 0,
@@ -136,9 +136,9 @@ class NativeFamilyRenderer {
     renderer.quad.renderOrder = order;
   }
 
-  three.Vector3 point(String id) {
+  sd.Vector3 point(String id) {
     final p = animation.point(id);
-    return three.Vector3(p.x, p.y, root.position.z);
+    return sd.Vector3(p.x, p.y, root.position.z);
   }
 
   void dispose() => renderer.dispose();

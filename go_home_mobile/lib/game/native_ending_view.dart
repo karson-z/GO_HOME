@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_asset_decode.dart';
 
@@ -20,7 +20,7 @@ class NativeEndingView {
   NativeEndingView(this.idle);
   final OriginalEnding idle;
   late final Map<String, dynamic> sourceConfig;
-  final root = three.Group();
+  final root = sd.GroupNode();
   final Map<String, NativePuppetRenderer> beasts = {};
   final Map<String, OriginalEndingAnimalMotion> animalMotion = {};
   late final OriginalEndingDogMotion dogMotion;
@@ -29,11 +29,11 @@ class NativeEndingView {
   late final NativeArtistFirefly artistFirefly;
   final Map<String, NativeFamilyRenderer> family = {};
   final Map<String, NativeSoulDot> dots = {};
-  final Map<String, three.Vector3> rest = {}, hover = {};
+  final Map<String, sd.Vector3> rest = {}, hover = {};
   final Map<String, double> shownFor = {};
   double? motherX;
   double? lastAnimalTime;
-  three.Vector3? soulRest, motherRest;
+  sd.Vector3? soulRest, motherRest;
   static double q(double t) {
     final u = t.clamp(0.0, 1.0);
     return u * u * (3 - 2 * u);
@@ -88,13 +88,13 @@ class NativeEndingView {
       }
       if (name == 'owl') {
         rig.number('uSpark', 1);
-        (rig.material.uniforms['uAccent']['value'] as three.Color).setFrom(
-          three.Color.fromHex32(0xa8843c).toLinear(),
+        (rig.material.uniforms['uAccent']['value'] as sd.Color).setFrom(
+          sd.Color.fromHex32(0xa8843c).toLinear(),
         );
       }
       if (name == 'woodpecker') {
-        (rig.material.uniforms['uAccent']['value'] as three.Color).setFrom(
-          three.Color.fromHex32(0xb4473c).toLinear(),
+        (rig.material.uniforms['uAccent']['value'] as sd.Color).setFrom(
+          sd.Color.fromHex32(0xb4473c).toLinear(),
         );
         rig.number('uFloorAdd', .06);
         rig.number('uDarkSpread', .6);
@@ -122,17 +122,6 @@ class NativeEndingView {
     return view;
   }
 
-  void renderParts(three.Renderer renderer) {
-    artistFirefly.renderParts(renderer);
-    bearView.renderParts(renderer);
-    for (final p in beasts.values) {
-      if (p.root.visible) p.renderParts(renderer);
-    }
-    for (final p in family.values) {
-      if (p.root.visible) p.renderer.renderParts(renderer);
-    }
-  }
-
   void update(
     OriginalEnding? state,
     double ox,
@@ -140,7 +129,7 @@ class NativeEndingView {
     double dt,
     double time,
     double palette, {
-    Map<String, three.Vector3> boyLandmarks = const {},
+    Map<String, sd.Vector3> boyLandmarks = const {},
   }) {
     final e = state ?? idle;
     final animalDt = lastAnimalTime == null
@@ -150,7 +139,7 @@ class NativeEndingView {
     final palm = sourceConfig['look_sT'] as Map;
     final cuts = sourceConfig['look_Gt'] as Map;
     final finale = sourceConfig['look_vr'] as Map;
-    three.Vector3? contact(String who, String at) {
+    sd.Vector3? contact(String who, String at) {
       if (who == 'boy' || who == 'kids') return boyLandmarks[at]?.clone();
       final actor = family[who];
       return actor?.root.visible == true ? actor!.point(at) : null;
@@ -229,9 +218,9 @@ class NativeEndingView {
       final draw = copy(a);
       var shrink = 0.0, lean = 0.0, sit = 0.0, slump = 0.0;
       var order = 24;
-      three.Vector3? look;
+      sd.Vector3? look;
       final reach = <String, FamilyReach>{};
-      void target(String side, three.Vector3? p, double weight, double? angle) {
+      void target(String side, sd.Vector3? p, double weight, double? angle) {
         if (p != null) {
           reach[side] = (p: (x: p.x, y: p.y), weight: weight, palm: angle);
         }
@@ -258,7 +247,7 @@ class NativeEndingView {
             who,
             () => entry.value.root.visible
                 ? entry.value.root.position.clone()
-                : three.Vector3(
+                : sd.Vector3(
                     ox + e.treeX + e.paths[who]!.at(34).x,
                     oy + e.topY,
                     e.paths[who]!.at(34).z,
@@ -278,7 +267,7 @@ class NativeEndingView {
             target('B', shoulder, q(since / .25), math.pi * .95);
             look = contact('boy', 'head');
           }
-          final light = three.Vector3(
+          final light = sd.Vector3(
             anchor.x,
             anchor.y + height * .7,
             anchor.z + .01,
@@ -302,10 +291,7 @@ class NativeEndingView {
                 .8 * rise + math.sin(time * 2.2 + (phases[who] ?? 0)) * .03;
             light.x += .15 * rise;
             if (a.stage == 'rise') {
-              light.lerp(
-                three.Vector3(ox + a.x, oy + a.y, a.z),
-                q(a.stageU / .5),
-              );
+              light.lerp(sd.Vector3(ox + a.x, oy + a.y, a.z), q(a.stageU / .5));
               alpha = 1 - q((a.stageU - .6) / .4);
               size = .16 * (1 - .45 * a.stageU);
             }
@@ -412,7 +398,7 @@ class NativeEndingView {
           if (soul?.root.visible == true) {
             target(
               'F',
-              three.Vector3(
+              sd.Vector3(
                 (soul!.root.position.x + ox + draw.x) / 2,
                 oy + e.ground(soul.root.position.x - ox) + .6,
                 soul.root.position.z + .01,
@@ -430,7 +416,7 @@ class NativeEndingView {
           draw.z = anchor.z;
           shrink = q((t - 4) / 1.3);
           draw.alpha *= 1 - q((t - 4) / 1.1);
-          final light = three.Vector3(
+          final light = sd.Vector3(
             anchor.x,
             anchor.y + entry.value.height * .7,
             anchor.z + .01,
@@ -438,13 +424,13 @@ class NativeEndingView {
           final fly = q((t - 4.8) / 2.5);
           light.y += 1.6 * fly;
           light.lerp(
-            three.Vector3(ox + a.x, oy + a.y + entry.value.height * .7, a.z),
+            sd.Vector3(ox + a.x, oy + a.y + entry.value.height * .7, a.z),
             q((fly - .35) / .65),
           );
           final alpha = shrink * (1 - q((t - 8.8) / 2));
           dots['mom']!.set(light, .06 + .1 * shrink, alpha);
           dots['soul']!.set(
-            light.clone()..add(three.Vector3(-.3, -.2, .01)),
+            light.clone()..add(sd.Vector3(-.3, -.2, .01)),
             .05 + .08 * shrink,
             alpha,
           );
@@ -467,7 +453,7 @@ class NativeEndingView {
       }
       if (who == 'soul' && a.shown) {
         final t = e.after;
-        final anchor = three.Vector3(ox + a.x, oy + e.ground(a.x), a.z);
+        final anchor = sd.Vector3(ox + a.x, oy + e.ground(a.x), a.z);
         if (t >= 4) {
           soulRest ??= anchor.clone();
           anchor.setFrom(soulRest!);
@@ -483,7 +469,7 @@ class NativeEndingView {
         draw.face = mx >= anchor.x ? 1 : -1;
         target(
           'F',
-          three.Vector3((anchor.x + mx) / 2, oy + e.topY + .6, anchor.z + .01),
+          sd.Vector3((anchor.x + mx) / 2, oy + e.topY + .6, anchor.z + .01),
           q((t - finale['grip'] * .5) / (finale['grip'] * .5 + .4)),
           palmAt('hand'),
         );
@@ -515,7 +501,7 @@ class NativeEndingView {
     final dog = e.members['dog']!, rig = beasts['fam-dog']!;
     rig.root.visible = dog.shown;
     if (dog.shown) {
-      final position = three.Vector3(ox + dog.x, oy + dog.y, dog.z);
+      final position = sd.Vector3(ox + dog.x, oy + dog.y, dog.z);
       var cue = e.bar >= 26 ? dog.cue : EndingCue(act: 'run');
       var alpha = .96;
       var propAlpha = 1.0;
@@ -531,7 +517,7 @@ class NativeEndingView {
         alpha = .96 * (1 - q((since - .8) / .8));
         propAlpha = math.pow(1 - q((since - .8) / .8), 2).toDouble();
         final shrink = q((since - .8) / 1.5);
-        final light = three.Vector3(
+        final light = sd.Vector3(
           anchor.x,
           oy + e.ground(anchor.x - ox) + .3,
           anchor.z + .01,

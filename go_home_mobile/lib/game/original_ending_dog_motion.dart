@@ -4,7 +4,7 @@ import 'original_puppet_motion.dart';
 import 'original_puppet_rig.dart';
 
 /// Source IE.drive/poseDog. Travel, turns and inertial transitions are solved
-/// independently of the GLES scene; no animation is sampled from a movie.
+/// independently of the rendered scene; no animation is sampled from a movie.
 class OriginalEndingDogMotion {
   OriginalEndingDogMotion(this.rig);
   final OriginalPuppetRig rig;

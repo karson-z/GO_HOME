@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:three_js/three_js.dart' as three;
+
+import '../game/scene_data.dart' as sd;
+
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../game/game_controller.dart';
@@ -11,7 +13,6 @@ import 'original_settings.dart';
 import 'original_pause_menu.dart';
 import 'original_resume_veil.dart';
 import 'original_scene_progress.dart';
-import '../game/world_view.dart';
 import '../game/original_world_view.dart';
 
 const cream = Color(0xfff0e9d8);
@@ -33,9 +34,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    world = game.route == null
-        ? WorldView(game: game)
-        : OriginalWorldView(key: worldKey, game: game);
+    world = OriginalWorldView(key: worldKey, game: game);
     HardwareKeyboard.instance.addHandler(_key);
   }
 
@@ -322,7 +321,7 @@ class _GameScreenState extends State<GameScreen> {
   double _boyScreenX() {
     final dynamic state = worldKey.currentState;
     if (state == null || !state.ready) return .5;
-    final point = three.Vector3(game.x, game.y + .6, 0)
+    final point = sd.Vector3(game.x, game.y + .6, 0)
       ..project(state.renderer.camera);
     return (point.x + 1) / 2;
   }

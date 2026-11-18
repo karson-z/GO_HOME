@@ -2,14 +2,15 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:three_js/three_js.dart' as three;
+
+import 'scene_data.dart' as sd;
 
 import 'game_controller.dart';
 import 'native_world_assets.dart';
-import 'native_postprocess.dart';
+import 'flutter_scene_renderer.dart';
+import 'scene_compiler.dart';
 import 'native_boy_renderer.dart';
 import 'original_boy_motion.dart';
-import 'native_render_order.dart';
 import 'original_rhythm.dart';
 import 'player_physics.dart';
 import 'native_opening_view.dart';
@@ -32,27 +33,25 @@ import 'native_ending_flight_view.dart';
 import 'original_ending_flight.dart';
 import 'original_ending_look.dart';
 import 'native_game_hints.dart';
-import 'native_gpu_warmup.dart';
 
 class OriginalWorldView extends StatefulWidget {
   const OriginalWorldView({super.key, required this.game});
   @visibleForTesting
-  static void Function(three.ThreeJS)? configureRendererForTest;
+  static void Function(FlutterSceneRenderer)? configureRendererForTest;
   final GameController game;
   @override
   State<OriginalWorldView> createState() => _OriginalWorldViewState();
 }
 
 class _OriginalWorldViewState extends State<OriginalWorldView> {
-  late final three.ThreeJS renderer;
+  late final FlutterSceneRenderer renderer;
   final assets = NativeWorldAssets();
   final Map<String, NativeWorldChunk> chunks = {};
   final Set<String> pending = {};
   final Set<Future<void>> loadingJobs = {};
   Future<void>? transition;
   NativeWorldChunk? global;
-  NativePostprocess? post;
-  NativeGpuWarmup? gpuWarmup;
+  SourcePostprocess? post;
   NativeBoyRenderer? boy;
   NativeOpeningView? openingView;
   NativeHedgehogView? hedgeView;
@@ -78,25 +77,21 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
   @override
   void initState() {
     super.initState();
-    renderer = three.ThreeJS(
+    renderer = FlutterSceneRenderer(
       setup: setup,
       onSetupComplete: () {
         if (mounted) setState(() => ready = true);
       },
-      settings: three.Settings(
-        useSourceTexture: true,
-        clearColor: 0x1d202a,
-        enableShadowMap: false,
-        screenResolution: 1.5,
-        antialias: false,
-        renderOptions: {'format': three.RGBAFormat, 'samples': 0},
-      ),
+      onError: (e, stack) {
+        debugPrint('Flutter Scene: $e\n$stack');
+        if (mounted) setState(() => error = e.toString());
+      },
     );
   }
 
   Future<void> setup() async {
-    renderer.scene = three.Scene()..matrixAutoUpdate = false;
-    renderer.camera = three.PerspectiveCamera(
+    renderer.scene = sd.WorldScene()..matrixAutoUpdate = false;
+    renderer.camera = sd.PerspectiveLens(
       28,
       renderer.width / renderer.height,
       .5,
@@ -104,10 +99,11 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
     );
     try {
       OriginalWorldView.configureRendererForTest?.call(renderer);
-      installSourceRenderOrder(renderer.renderer!);
       await assets.initialize();
       routePalette = OriginalRoutePalette(await OriginalPalette.load());
+      assets.prepare = renderer.prepareChunk;
       global = await assets.load('_global');
+      renderer.registerChunk(global!);
       farView = NativeFarView(global!);
       if (disposed) {
         global!.dispose();
@@ -119,6 +115,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         boy!.dispose();
         return;
       }
+      await renderer.registerBoy(boy!);
       renderer.scene.add(boy!.root);
       hintsView = await NativeGameHints.load();
       if (disposed) {
@@ -136,44 +133,22 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       game.camera!.aspect = renderer.width / renderer.height;
       game.camera!.snap(game.x, game.y);
       await stream(blocking: true);
-      post = NativePostprocess(renderer, assets)
-        ..sceneResolution = game.renderResolution;
-      await post!.initialize();
-      gpuWarmup = NativeGpuWarmup(
-        renderer.renderer!,
-        renderer.scene,
-        () => renderer.camera,
-        () => post?.sceneTarget,
-      );
-      assets.prepare = gpuWarmup!.prepare;
-      // These chunks were constructed before the HDR target existed. Prepare
-      // them under the loading screen too, rather than on the first play frame.
-      for (final chunk in [global!, ...chunks.values]) {
-        await gpuWarmup!.prepare(chunk);
-        if (disposed) return;
-      }
-      post!.beforeSceneRender = (r) {
-        boy?.renderParts(r);
-        turtleView?.renderParts(r);
-        bearView?.renderParts(r);
-        fireflyView?.renderParts(r);
-        endingView?.renderParts(r);
-        for (final animal in animals.values) {
-          animal.renderParts(r);
-        }
+      post = await renderer.initializePostprocess(assets);
+      renderer.beforeSceneRender = () {
         final frustum = viewFrustum();
         updateSceneVisibility(frustum);
         // Culling needs current matrices. Update once here; render() must not
         // traverse the entire world a second time. Static chunk roots retain
         // their matrices, while animated objects mark their own changes.
+        renderer.camera.updateMatrixWorld(true);
         renderer.scene.updateMatrixWorld();
+        renderer.world.frustum = frustum;
         global?.culling.update(frustum);
         for (final chunk in chunks.values) {
           if (chunk.root.visible) chunk.culling.update(frustum);
         }
       };
       renderer.scene.matrixWorldAutoUpdate = false;
-      renderer.postProcessor = post!.render;
       if (disposed) return;
       game.sceneReady();
     } catch (e, stack) {
@@ -191,9 +166,12 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         chunk.dispose();
         return;
       }
+      renderer.registerChunk(chunk);
       chunks[id] = chunk;
       if (id == 'dusk-hedgehog') hedgeView = NativeHedgehogView(chunk);
-      if (id == 'cave-bat') batView = NativeBatView(chunk);
+      if (id == 'cave-bat') {
+        batView = NativeBatView(chunk, hintsView!.textures);
+      }
       if (id == 'night-owl') owlView = NativeOwlView(chunk);
       if (id == 'dusk-squirrel') {
         final view = await NativeSquirrelView.load(chunk);
@@ -216,6 +194,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         }
         bearView?.dispose();
         bearView = view;
+        await renderer.registerPuppet(view.turnRig);
       }
       if (id == 'dawn-woodpecker') woodpeckerView = NativeWoodpeckerView(chunk);
       renderer.scene.add(chunk.root);
@@ -231,6 +210,14 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         }
         endingView?.dispose();
         endingView = view;
+        await renderer.registerPuppet(view.bearView.turnRig);
+        await renderer.registerPuppet(view.artistFirefly.rig);
+        for (final rig in view.beasts.values) {
+          await renderer.registerPuppet(rig);
+        }
+        for (final member in view.family.values) {
+          await renderer.registerBoy(member.renderer);
+        }
         renderer.scene.add(view.root);
       }
       if (id == 'dusk-firefly') {
@@ -242,6 +229,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         fireflyView?.dispose();
         fireflyView = view;
         for (final rig in view.rigs) {
+          await renderer.registerPuppet(rig);
           renderer.scene.add(rig.root);
         }
       }
@@ -254,10 +242,12 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         turtleView?.dispose();
         turtleView = view;
         for (final rig in view.rigs) {
+          await renderer.registerPuppet(rig);
           renderer.scene.add(rig.root);
         }
       }
     } catch (e, stack) {
+      if (disposed) return;
       debugPrint('Source chunk $id: $e\n$stack');
       if (mounted) setState(() => error = '$id: $e');
     } finally {
@@ -270,7 +260,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
     final current = sceneIndex;
     // Start the next window while approaching a seam, not on the seam frame.
     // Two seconds of travel gives decode/upload time without retaining the
-    // whole route. Visibility still uses the actual camera/current scene.
+    // whole route. Visibility still uses the actual camera/current sd.
     final leadX = game.x + (game.vx * 2).clamp(-24.0, 24.0);
     final predictedIndex = assets.manifest.indexWhere(
       (meta) => leadX < (meta['x1'] as num),
@@ -349,6 +339,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
             rig.dispose();
             return;
           }
+          await renderer.registerPuppet(rig);
           animals[i] = rig;
           rig.root.position.setValues(
             segment.metadata(i).callerX,
@@ -382,17 +373,17 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
     return index < 0 ? assets.manifest.length - 1 : index;
   }
 
-  three.Frustum viewFrustum() {
+  sd.ViewFrustum viewFrustum() {
     renderer.camera.updateMatrixWorld(true);
-    return three.Frustum()..setFromMatrix(
-      three.Matrix4.identity()..multiply2(
+    return sd.ViewFrustum()..setFromMatrix(
+      sd.Matrix4.identity()..multiply2(
         renderer.camera.projectionMatrix,
         renderer.camera.matrixWorldInverse,
       ),
     );
   }
 
-  void updateSceneVisibility(three.Frustum frustum) {
+  void updateSceneVisibility(sd.ViewFrustum frustum) {
     final current = sceneIndex;
     final flight = (game.ending?.flightTime ?? -1) >= 0;
     final returning = flight && (game.ending?.loopDown ?? false);
@@ -432,7 +423,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
   }
 
   void color(String name, List v) {
-    final c = uniform(name) as three.Color?;
+    final c = uniform(name) as sd.Color?;
     c?.setRGB(
       (v[0] as num).toDouble(),
       (v[1] as num).toDouble(),
@@ -442,17 +433,17 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
 
   void vector(String name, List<num> values) {
     final v = uniform(name);
-    if (v is three.Vector2) {
+    if (v is sd.Vector2) {
       v.setValues(values[0].toDouble(), values[1].toDouble());
     }
-    if (v is three.Vector3) {
+    if (v is sd.Vector3) {
       v.setValues(
         values[0].toDouble(),
         values[1].toDouble(),
         values[2].toDouble(),
       );
     }
-    if (v is three.Vector4) {
+    if (v is sd.Vector4) {
       v.setValues(
         values[0].toDouble(),
         values[1].toDouble(),
@@ -479,7 +470,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
     final layers = uniform('uLayerCol') as List;
     for (var i = 0; i < layers.length; i++) {
       final c = p['layers'][i] as List;
-      (layers[i] as three.Vector3).setValues(c[0], c[1], c[2]);
+      (layers[i] as sd.Vector3).setValues(c[0], c[1], c[2]);
     }
     const scalars = {
       'uMistDist': 'mistDist',
@@ -505,7 +496,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       p['grassPx'],
       2 *
           math.tan(28 * math.pi / 360) /
-          (renderer.height * (renderer.settings.screenResolution ?? 1)),
+          (renderer.height * renderer.pixelRatio),
     ]);
     final pose = game.camera!.pose;
     final pitch =
@@ -518,10 +509,10 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
           ),
         );
     vector('uTilt', [math.cos(pitch), math.sin(pitch)]);
-    final referenceRotation = three.Quaternion()
-      ..setFromEuler(three.Euler(5.5 * math.pi / 180, 0, 0));
-    three.Vector3 skyDirection(num x, num y) =>
-        three.Vector3(
+    final referenceRotation = sd.Quaternion()
+      ..setFromEuler(sd.Euler(5.5 * math.pi / 180, 0, 0));
+    sd.Vector3 skyDirection(num x, num y) =>
+        sd.Vector3(
             (x * 2 - 1) * (16 / 9) * math.tan(28 * math.pi / 360),
             (1 - y * 2) * math.tan(28 * math.pi / 360),
             -1,
@@ -530,14 +521,14 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
           ..applyQuaternion(referenceRotation);
     final sun = skyDirection(p['sunX'], p['sunY']),
         moon = skyDirection(p['moonX'], p['moonY']);
-    (uniform('uSunDir') as three.Vector3).setFrom(sun);
-    (uniform('uMoonDir') as three.Vector3).setFrom(moon);
+    (uniform('uSunDir') as sd.Vector3).setFrom(sun);
+    (uniform('uMoonDir') as sd.Vector3).setFrom(moon);
     final daylight = math
         .max(p['sunAmt'] as num, (p['glowAmt'] as num) * .6)
         .toDouble();
     final moonAmt = (p['moonAmt'] as num).toDouble();
     final moonMix = moonAmt / (moonAmt + daylight + .001);
-    (uniform('uLightDir') as three.Vector3).setFrom(sun)
+    (uniform('uLightDir') as sd.Vector3).setFrom(sun)
       ..lerp(moon, moonMix)
       ..normalize();
     number(
@@ -595,8 +586,8 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       radius /= weight;
       gain /= weight;
     }
-    (glowPos[0] as three.Vector4).setValues(game.x, game.y + .5, .3, radius);
-    (glowCol[0] as three.Vector3).setValues(
+    (glowPos[0] as sd.Vector4).setValues(game.x, game.y + .5, .3, radius);
+    (glowCol[0] as sd.Vector3).setValues(
       accent[0] * gain,
       accent[1] * gain,
       accent[2] * gain,
@@ -611,9 +602,8 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
 
   void applyQuality() {
     assets.setQuality(game.quality);
-    // Keep Angle's presentation texture stable. Scale the native scene and all
-    // postprocess targets, then let the final pass fill the presentation target.
-    post?.sceneResolution = game.renderResolution;
+    // Match the original quality density and physical render resolution.
+    renderer.pixelRatio = game.renderResolution;
   }
 
   double streamClock = 0;
@@ -662,7 +652,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         : game.camera!.pose;
     renderer.camera.position.setValues(pose.pos[0], pose.pos[1], pose.pos[2]);
     renderer.camera.lookAt(
-      three.Vector3(pose.look[0], pose.look[1], pose.look[2]),
+      sd.Vector3(pose.look[0], pose.look[1], pose.look[2]),
     );
     farView?.update(pose.look[0]);
     final endSegment = game.route!.segments[8];
@@ -744,7 +734,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
           final fade = mat.uniforms['uEgU'];
           if (fade != null) fade['value'] = endFade;
           final col = mat.uniforms['uEgOld']?['value'];
-          if (col is three.Color) col.setRGB(old[0], old[1], old[2]);
+          if (col is sd.Color) col.setRGB(old[0], old[1], old[2]);
         }
       }
       final end = game.ending;
@@ -770,31 +760,33 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       paletteRevision = game.sceneRevision;
       palette(p, pose.look[0]);
       final wind = uniform('uWind');
-      if (wind is three.Vector2) {
+      if (wind is sd.Vector2) {
         final target = (p['wind'] as double).isNaN
             ? routePalette!.windAt(game.x)
             : p['wind'] as double;
         wind.x += (target - wind.x) * (1 - math.exp(-elapsed / 1.5));
       }
-      post?.updatePalette(p, game.animationTime);
+      post?.palette(p, game.animationTime);
       for (final chunk in chunks.values) {
         chunk.updateBeams(
           pose.pos[0],
           (p['rays'] as num).toDouble(),
-          uniform('uLightDir') as three.Vector3,
+          uniform('uLightDir') as sd.Vector3,
         );
       }
-      final particles = global!.nodes.whereType<three.Points>();
+      final particles = global!.nodes.whereType<sd.PointCloud>();
       for (final node in particles) {
         if (node.name != 'PARTICLES') continue;
         final u = node.material!.uniforms;
-        (u['uCam']['value'] as three.Vector3).setValues(
+        (u['uCam']['value'] as sd.Vector3).setValues(
           pose.pos[0],
           pose.pos[1],
           0,
         );
         u['uMotes']['value'] = (p['motes'] as num) * .9;
-        u['uPx']['value'] = (post!.height * .5) / math.tan(28 * math.pi / 360);
+        u['uPx']['value'] =
+            (renderer.height * renderer.pixelRatio * .5) /
+            math.tan(28 * math.pi / 360);
       }
       final t = (p['paletteTime'] as num).toDouble();
       currentPaletteT = t;
@@ -837,6 +829,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
         elapsed,
         game.x - game.route!.segments[3].ox,
         t,
+        hintMode: game.hintMode,
       );
     }
     final returning = game.ending?.loopDown ?? false;
@@ -957,19 +950,19 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
     if (guide != null && guide.light > .02) {
       final glowPos = uniform('uGlowPos') as List;
       final glowCol = uniform('uGlowCol') as List;
-      (glowPos[1] as three.Vector4).setValues(
+      (glowPos[1] as sd.Vector4).setValues(
         guide.position.x,
         guide.position.y,
         guide.position.z,
         2.6,
       );
-      final color = three.Color.fromHex32(0xffd9a0).toLinear()
+      final color = sd.Color.fromHex32(0xffd9a0).toLinear()
         ..lerpColors(
-          three.Color.fromHex32(0xffd9a0).toLinear(),
-          three.Color.fromHex32(0xdfe4f2).toLinear(),
+          sd.Color.fromHex32(0xffd9a0).toLinear(),
+          sd.Color.fromHex32(0xdfe4f2).toLinear(),
           .12,
         );
-      (glowCol[1] as three.Vector3).setValues(
+      (glowCol[1] as sd.Vector3).setValues(
         color.red * .45 * guide.light,
         color.green * .45 * guide.light,
         color.blue * .45 * guide.light,
@@ -1058,8 +1051,13 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
     fit: StackFit.expand,
     children: [
       renderer.build(),
-      if ((!ready || game.loading) && game.startup == null)
-        const IgnorePointer(
+      ListenableBuilder(
+        listenable: game,
+        builder: (context, child) =>
+            (!ready || game.loading) && game.startup == null
+            ? child!
+            : const SizedBox.shrink(),
+        child: const IgnorePointer(
           child: Center(
             child: CircularProgressIndicator(
               strokeWidth: 1,
@@ -1067,6 +1065,7 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
             ),
           ),
         ),
+      ),
       if (error != null)
         ColoredBox(
           color: const Color(0xff20242d),
@@ -1086,7 +1085,6 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
   @override
   void dispose() {
     disposed = true;
-    gpuWarmup?.dispose();
     hintsView?.dispose();
     openingView?.dispose();
     boy?.dispose();
@@ -1102,7 +1100,6 @@ class _OriginalWorldViewState extends State<OriginalWorldView> {
       chunk.dispose();
     }
     global?.dispose();
-    post?.dispose();
     assets.dispose();
     renderer.dispose();
     super.dispose();

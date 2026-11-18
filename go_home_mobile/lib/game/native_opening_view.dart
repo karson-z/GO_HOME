@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_boy_renderer.dart';
 import 'native_firefly_light.dart';
@@ -12,14 +12,14 @@ import 'original_ending_flight.dart';
 /// Source fog-look ay, shared by the opening and the returning loop.
 class NativeOpeningView {
   final light = NativeFireflyLight();
-  three.Group get root => light.root;
+  sd.GroupNode get root => light.root;
   double glowValue = 0;
   OriginalLeadFirefly? lead;
   NativeFireflyLight? leadLight;
   EndingPoint? get openingPosition => root.visible
       ? (x: root.position.x, y: root.position.y, z: root.position.z)
       : null;
-  void attachLead(three.Scene scene, double Function(double) groundAt) {
+  void attachLead(sd.WorldScene scene, double Function(double) groundAt) {
     lead = OriginalLeadFirefly(groundAt: groundAt);
     leadLight = NativeFireflyLight(amber: false);
     leadLight!.root.name = 'lead-firefly';
@@ -50,9 +50,9 @@ class NativeOpeningView {
     boy.stage.updateMatrixWorld(true);
     boy.root.updateMatrixWorld(true);
     final mesh = boy.rig.joints['musicbox']!.children
-        .whereType<three.Mesh>()
+        .whereType<sd.DrawMesh>()
         .first;
-    final pos = three.Vector3()
+    final pos = sd.Vector3()
       ..applyMatrix4(mesh.matrixWorld)
       ..applyMatrix4(boy.stage.matrixWorld.clone()..invert())
       ..applyMatrix4(boy.root.matrixWorld);
@@ -61,7 +61,7 @@ class NativeOpeningView {
 
   void glow(double k) => glowValue = k;
 
-  void applySize(three.Camera camera, {OriginalEnding? returning}) {
+  void applySize(sd.SceneCamera camera, {OriginalEnding? returning}) {
     if (!root.visible) return;
     final distance = returning != null
         ? returning.flight.at(returning.flightTime).distance

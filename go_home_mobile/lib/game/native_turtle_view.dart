@@ -1,7 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
-
 import 'native_puppet_renderer.dart';
 import 'original_turtle.dart';
 
@@ -91,12 +89,6 @@ class NativeTurtleView {
       // The water colour is rendered by the original foreground water layer.
       r.number('uOpacity', s.up ? 1 : .75);
       r.root.updateMatrix();
-    }
-  }
-
-  void renderParts(three.Renderer renderer) {
-    for (final rig in rigs) {
-      rig.renderParts(renderer);
     }
   }
 

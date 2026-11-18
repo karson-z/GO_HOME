@@ -1,4 +1,4 @@
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'original_firefly_light.dart';
 
@@ -6,9 +6,9 @@ import 'original_firefly_light.dart';
 /// Its vertex shader billboards exactly as Three.js Sprite (sizeAttenuation).
 class NativeFireflyLight {
   NativeFireflyLight({this.amber = true}) {
-    texture = three.DataTexture(originalFireflyTexture(), 64, 64)
-      ..minFilter = three.LinearFilter
-      ..magFilter = three.LinearFilter
+    texture = sd.PixelTexture(originalFireflyTexture(), 64, 64)
+      ..minFilter = sd.LinearFilter
+      ..magFilter = sd.LinearFilter
       ..generateMipmaps = false
       ..needsUpdate = true;
     glow = _layer('glow', 0xffe4a0, true, false, 40);
@@ -17,25 +17,25 @@ class NativeFireflyLight {
     root.visible = false;
   }
   final bool amber;
-  final root = three.Group();
-  late final three.DataTexture texture;
-  late final three.Mesh glow, core;
-  three.Mesh? warm;
-  final _materials = <three.ShaderMaterial>[];
-  final _geometry = three.PlaneGeometry(1, 1);
+  final root = sd.GroupNode();
+  late final sd.PixelTexture texture;
+  late final sd.DrawMesh glow, core;
+  sd.DrawMesh? warm;
+  final _materials = <sd.ShaderData>[];
+  final _geometry = sd.PlaneData(1, 1);
 
-  three.Mesh _layer(
+  sd.DrawMesh _layer(
     String name,
     int color,
     bool additive,
     bool alphaMap,
     int order,
   ) {
-    final material = three.ShaderMaterial.fromMap({
+    final material = sd.ShaderData.fromMap({
       'name': 'source-firefly-$name',
       'uniforms': {
         'uMap': {'value': texture},
-        'uColor': {'value': three.Color.fromHex32(color).toLinear()},
+        'uColor': {'value': sd.Color.fromHex32(color).toLinear()},
         'uOpacity': {'value': 1.0},
         'uAlphaMap': {'value': alphaMap ? 1.0 : 0.0},
       },
@@ -45,10 +45,10 @@ class NativeFireflyLight {
       'depthTest': false,
       'depthWrite': false,
       'fog': false,
-      'blending': additive ? three.AdditiveBlending : three.NormalBlending,
+      'blending': additive ? sd.AdditiveBlending : sd.NormalBlending,
     });
     _materials.add(material);
-    final mesh = three.Mesh(_geometry, material)
+    final mesh = sd.DrawMesh(_geometry, material)
       ..name = 'start-firefly-$name'
       ..renderOrder = order
       ..frustumCulled = false;
@@ -81,7 +81,7 @@ void main() {
 }
 ''';
 
-  void _alpha(three.Mesh layer, double value) =>
+  void _alpha(sd.DrawMesh layer, double value) =>
       layer.material!.uniforms['uOpacity']['value'] = value;
   void setSize(FireflyLightSize size) {
     glow.scale.setScalar(size.glow);

@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
-import 'package:three_js/three_js.dart' as three;
+
+import 'scene_data.dart' as sd;
 
 import 'game_controller.dart';
+import 'native_asset_decode.dart';
 import 'native_ending_view.dart';
 import 'original_caller.dart';
 import 'original_hint_motion.dart';
@@ -16,27 +18,27 @@ import 'original_five_hint.dart';
 import 'original_wood_hint_lights.dart';
 import 'player_physics.dart';
 
-/// Original in-world teaching artwork. This is drawn by native GLES, at world
+/// Original in-world teaching artwork. This is drawn through the active scene backend, at world
 /// coordinates, with source SpriteMaterial blending and depth settings.
 class NativeGameHints {
-  final root = three.Group()..name = 'original-game-hints';
+  final root = sd.GroupNode()..name = 'original-game-hints';
   final woodApproach =
-      three.Mesh(
-          three.RingGeometry(.15, .185, 32),
-          three.MeshBasicMaterial.fromMap({
+      sd.DrawMesh(
+          sd.RingData(.15, .185, 32),
+          sd.UnlitData.fromMap({
             'color': 0xffd9a0,
             'transparent': true,
             'opacity': 0.0,
-            'blending': three.AdditiveBlending,
+            'blending': sd.AdditiveBlending,
             'depthWrite': false,
             'fog': false,
-            'side': three.DoubleSide,
+            'side': sd.DoubleSide,
           }),
         )
         ..visible = false
         ..renderOrder = 12;
-  final textures = <String, three.Texture>{};
-  final pool = <three.Sprite>[];
+  final textures = <String, sd.TextureData>{};
+  final pool = <sd.BillboardNode>[];
   OriginalMoveHint move = OriginalMoveHint();
   OriginalJumpHint? jump;
   final pushHints = <OriginalPushHint>[];
@@ -91,9 +93,11 @@ class NativeGameHints {
       await rootBundle.loadString('assets/hints/original_hints.json'),
     );
     for (final key in (view.config['textures'] as Map).keys) {
-      final texture = (await three.TextureLoader(flipY: true)
-          .fromAsset('assets/hints/$key.png'))!;
-      texture.colorSpace = three.SRGBColorSpace;
+      final texture = await loadNativeTexture(
+        'assets/hints/$key.png',
+        flipY: true,
+      );
+      texture.colorSpace = sd.SRGBColorSpace;
       view.textures[key as String] = texture;
     }
     return view;
@@ -176,7 +180,7 @@ class NativeGameHints {
 
   void update(
     GameController game,
-    three.Camera camera,
+    sd.SceneCamera camera,
     double width,
     double height,
     NativeEndingView? endingView,
@@ -944,8 +948,8 @@ class NativeGameHints {
 
   void _apply(List<HintDraw> draws) {
     while (pool.length < draws.length) {
-      final sprite = three.Sprite(
-        three.SpriteMaterial.fromMap({
+      final sprite = sd.BillboardNode(
+        sd.BillboardData.fromMap({
           'transparent': true,
           'sizeAttenuation': true,
           'depthWrite': false,
@@ -965,19 +969,19 @@ class NativeGameHints {
       final d = draws[i];
       s.visible = d.alpha > .001 && d.w > 0 && d.h > 0;
       if (!s.visible) continue;
-      final mat = s.material as three.SpriteMaterial;
+      final mat = s.material as sd.BillboardData;
       if (mat.map != textures[d.texture]) {
         mat.map = textures[d.texture];
         mat.needsUpdate = true;
       }
-      mat.blending = d.additive ? three.AdditiveBlending : three.NormalBlending;
+      mat.blending = d.additive ? sd.AdditiveBlending : sd.NormalBlending;
       if (mat.depthTest != d.depthTest) {
         mat.depthTest = d.depthTest;
         mat.needsUpdate = true;
       }
       mat.opacity = d.alpha * tipOpacity;
       mat.rotation = d.rotation;
-      mat.color = three.Color.fromHex32(d.color).toLinear();
+      mat.color = sd.Color.fromHex32(d.color).toLinear();
       s.position.setValues(d.x, d.y, d.z);
       s.scale.setValues(d.w, d.h, 1);
       s.renderOrder = d.order;

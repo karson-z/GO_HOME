@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_world_assets.dart';
 import 'original_ending.dart';
@@ -13,13 +13,18 @@ class NativeEndingFlightView {
   final history = <({double t, double x, double y})>[];
   bool active = false;
   double s(double a, double b, double t) => endingSmooth((t - a) / (b - a));
-  void update(OriginalEnding? end, three.Camera camera, double ox, double oy) {
+  void update(
+    OriginalEnding? end,
+    sd.SceneCamera camera,
+    double ox,
+    double oy,
+  ) {
     final flight = chunk.nodes.where((n) => n.name == 'FLIGHT').firstOrNull;
     if (flight == null) return;
     final enabled = end != null && end.flightTime >= 0 && !end.finished;
     flight.visible = end?.inClouds ?? false;
     final sprites = chunk.nodes
-        .whereType<three.Sprite>()
+        .whereType<sd.BillboardNode>()
         .where((n) => n.renderOrder >= 39)
         .toList();
     if (!enabled) {
@@ -40,42 +45,42 @@ class NativeEndingFlightView {
     flight.position.setValues(originX, originY, 0);
     flight.updateMatrix();
     camera.updateMatrixWorld(true);
-    three.Vector3 project(double x, double y, double z) =>
-        three.Vector3(x, y, z)..project(camera);
+    sd.Vector3 project(double x, double y, double z) =>
+        sd.Vector3(x, y, z)..project(camera);
     double screenY(double y, [double z = 3.5]) =>
         project(camera.position.x, y, z).y * .5 + .5;
-    final ff = three.Vector3(ox + e.firefly.x, oy + e.firefly.y, e.firefly.z),
+    final ff = sd.Vector3(ox + e.firefly.x, oy + e.firefly.y, e.firefly.z),
         screen = project(ff.x, ff.y, ff.z);
     final height = e.flight.height(t),
         mix = s(6, 8, t),
         fade = s(3.6, 4.4, t) * (1 - s(7.6, 8.6, t));
     final spec = e.data['flight'];
-    final colors = <String, three.Vector3>{};
+    final colors = <String, sd.Vector3>{};
     for (final key in ['top', 'mid', 'bot']) {
       final a = spec['colors'][key] as List,
           b = spec['colorsDown'][key] as List;
-      colors[key] = three.Vector3(
+      colors[key] = sd.Vector3(
         a[0] + (b[0] - a[0]) * mix,
         a[1] + (b[1] - a[1]) * mix,
         a[2] + (b[2] - a[2]) * mix,
       );
     }
-    void value(three.Material mat, String key, dynamic v) {
+    void value(sd.MaterialData mat, String key, dynamic v) {
       if (mat.uniforms.containsKey(key)) mat.uniforms[key]['value'] = v;
     }
 
     for (final node in chunk.nodes) {
-      if (node is! three.Mesh || node.material == null) continue;
+      if (node is! sd.DrawMesh || node.material == null) continue;
       final mat = node.material!;
       if (mat.name == 'flight-mask') {
         value(mat, 'uA', screenY(originY - 8.2));
         value(mat, 'uB', screenY(originY - 29.5, -34));
-        value(mat, 'uAsp', (camera as three.PerspectiveCamera).aspect);
+        value(mat, 'uAsp', (camera as sd.PerspectiveLens).aspect);
         value(mat, 'uH', math.max(((p.cy + 30) / 23).clamp(0.0, 1.0), height));
         value(
           mat,
           'uFFs',
-          three.Vector3(screen.x * .5 + .5, screen.y * .5 + .5, 0),
+          sd.Vector3(screen.x * .5 + .5, screen.y * .5 + .5, 0),
         );
         final out = 1 - s(11.8, 14, t),
             veil = e.loopDown
@@ -95,7 +100,7 @@ class NativeEndingFlightView {
         value(mat, 'uFade', fade);
         value(mat, 'uHMin', height * .85);
         value(mat, 'uFFw', ff);
-        value(mat, 'uOrigin', three.Vector2(originX, originY));
+        value(mat, 'uOrigin', sd.Vector2(originX, originY));
         value(mat, 'uTopY', originY - 7);
         value(mat, 'uBotY', originY - 30);
       }

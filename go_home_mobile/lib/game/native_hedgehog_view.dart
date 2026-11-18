@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:three_js/three_js.dart' as three;
+import 'scene_data.dart' as sd;
 
 import 'native_world_assets.dart';
 import 'original_hedgehog.dart';
@@ -22,7 +22,7 @@ class NativeHedgehogView {
       }
     }
   }
-  three.Object3D? stone, shadow, glow, tree;
+  sd.SceneNode? stone, shadow, glow, tree;
   OriginalHedgehog? runtime;
   double fall = -1, bounce = -1;
   void update(OriginalHedgehog? h, double dt) {
@@ -46,7 +46,7 @@ class NativeHedgehogView {
     if (glow != null) {
       for (var i = 0; i < glow!.children.length; i++) {
         final child = glow!.children[i];
-        if (child is three.Sprite) {
+        if (child is sd.BillboardNode) {
           child.material?.opacity = (i == 0 ? .34 : .12) * (h?.glow ?? 0);
         }
       }
